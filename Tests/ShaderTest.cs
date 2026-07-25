@@ -183,6 +183,7 @@ namespace Tests
 
                     Assert.That(dyn2.ShaderFileId, Is.EqualTo(dyn1.ShaderFileId));
                     Assert.That(dyn2.DynamicComboId, Is.EqualTo(dyn1.DynamicComboId));
+                    Assert.That(dyn2.WriteSequenceIndex, Is.EqualTo(dyn1.WriteSequenceIndex));
 
                     // Source pointer is binary only
                     // Assert.That(dyn2.SourcePointer, Is.EqualTo(dyn1.SourcePointer));

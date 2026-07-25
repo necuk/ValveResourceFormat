@@ -355,8 +355,8 @@ public static partial class ShaderSpirvReflection
         // var leadingWriteSequence = shader.ZFrameCache.Get(zFrameId).DataBlocks[dynamicId];
 
         var dynamicBlockIndex =
-            Array.Find(staticComboData.DynamicCombos, r => r.ShaderFileId == shaderFile.ShaderFileId)?.DynamicComboId ?? 0;
-        var writeSequence = staticComboData.DynamicComboVariables[(int)dynamicBlockIndex];
+            Array.Find(staticComboData.DynamicCombos, r => r.ShaderFileId == shaderFile.ShaderFileId)?.WriteSequenceIndex ?? 0;
+        var writeSequence = staticComboData.DynamicComboVariables[dynamicBlockIndex];
 
         var bindingConfig = GetBindingConfiguration(program.VcsVersion, program.VcsProgramType);
         var hasBindlessResources =

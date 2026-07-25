@@ -78,8 +78,8 @@ namespace ValveResourceFormat.CompiledShader
                 DynamicCombos[i] = programData.VcsProgramType switch
                 {
                     VcsProgramType.PixelShader or VcsProgramType.PixelShaderRenderState
-                        => new VfxRenderStateInfoPixelShader(i, byteCodeIndex[i], -1, renderState),
-                    _ => new VfxRenderStateInfo(i, byteCodeIndex[i], -1),
+                        => new VfxRenderStateInfoPixelShader(id, byteCodeIndex[i], -1, renderState, i),
+                    _ => new VfxRenderStateInfo(id, byteCodeIndex[i], -1, i),
                 };
             }
 

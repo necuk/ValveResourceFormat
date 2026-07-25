@@ -13,6 +13,9 @@ public class VfxRenderStateInfo
     /// <summary>Gets the dynamic combo ID.</summary>
     public long DynamicComboId { get; }
 
+    /// <summary>Gets the dense index of this combo's write sequence.</summary>
+    public int WriteSequenceIndex { get; }
+
     /// <summary>Gets the shader file ID.</summary>
     public int ShaderFileId { get; }
 
@@ -22,9 +25,10 @@ public class VfxRenderStateInfo
     /// <summary>
     /// Initializes a new instance of the <see cref="VfxRenderStateInfo"/> class.
     /// </summary>
-    public VfxRenderStateInfo(long comboId, int shaderId, int sourcePointer)
+    public VfxRenderStateInfo(long comboId, int shaderId, int sourcePointer, int? writeSequenceIndex = null)
     {
         DynamicComboId = comboId;
+        WriteSequenceIndex = writeSequenceIndex ?? checked((int)comboId);
         ShaderFileId = shaderId;
         SourcePointer = sourcePointer;
     }
@@ -35,6 +39,7 @@ public class VfxRenderStateInfo
     public VfxRenderStateInfo(BinaryReader datareader)
     {
         DynamicComboId = datareader.ReadInt64();
+        WriteSequenceIndex = checked((int)DynamicComboId);
         ShaderFileId = datareader.ReadInt32();
         SourcePointer = datareader.ReadInt32();
     }
@@ -509,8 +514,13 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
     /// <summary>
     /// Initializes a new instance of the <see cref="VfxRenderStateInfoPixelShader"/> class.
     /// </summary>
-    public VfxRenderStateInfoPixelShader(long comboId, int shaderId, int sourcePointer, KVObject renderState)
-        : base(comboId, shaderId, sourcePointer)
+    public VfxRenderStateInfoPixelShader(
+        long comboId,
+        int shaderId,
+        int sourcePointer,
+        KVObject renderState,
+        int? writeSequenceIndex = null)
+        : base(comboId, shaderId, sourcePointer, writeSequenceIndex)
     {
         if (renderState is null)
         {
