@@ -256,6 +256,7 @@ namespace ValveResourceFormat.CompiledShader
             foreach (var block in StaticCombo.DynamicCombos)
             {
                 var blockId = (int)block.DynamicComboId;
+                var writeSequenceIndex = block.WriteSequenceIndex;
                 dBlockCount++;
                 if (dBlockCount % 100 == 0)
                 {
@@ -265,7 +266,9 @@ namespace ValveResourceFormat.CompiledShader
                 }
                 var configIdText = $"0x{blockId:X2}";
                 var configCombText = hasNoDConfigsDefined ? $"{"(default)",-14}" : tabbedConfigs.Pop();
-                var writeSeqText = writeSequences[blockId] == -1 ? "[empty]" : $"SEQ[{writeSequences[blockId]}]";
+                var writeSeqText = writeSequences[writeSequenceIndex] == -1
+                    ? "[empty]"
+                    : $"SEQ[{writeSequences[writeSequenceIndex]}]";
                 var blockSource = blockIdToSource.GetValueOrDefault(blockId);
                 if (blockSource is null)
                 {
@@ -275,8 +278,8 @@ namespace ValveResourceFormat.CompiledShader
                 var sourceLink = $"{blockSource.ShaderFileId:X2}";
                 var vsInputs = isVertexShader ? StaticCombo.VShaderInputs[block.ShaderFileId] : -1;
                 var gpuInputText = vsInputs >= 0 ? $"VS[{vsInputs}]" : "[none]";
-                var arg1Text = $"{StaticCombo.ConstantBufferBindInfoSlots[blockId]}";
-                var arg2Text = $"{StaticCombo.ConstantBufferBindInfoFlags[blockId]}";
+                var arg1Text = $"{StaticCombo.ConstantBufferBindInfoSlots[writeSequenceIndex]}";
+                var arg2Text = $"{StaticCombo.ConstantBufferBindInfoFlags[writeSequenceIndex]}";
                 var hash = blockSource.HashMD5.ToString();
                 tabulatedConfigFull.AddTabulatedRow(
                     isVertexShader ?
