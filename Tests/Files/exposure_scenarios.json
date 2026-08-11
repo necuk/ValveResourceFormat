@@ -1,0 +1,2146 @@
+{
+  "schema": "vrf_exposure.scenarios.v1",
+  "description": "Scenario corpus for the VRF exposure pipeline parity machine. Consumed by the Python reference model, the C# timeline emitter, and any engine oracle capture driver.",
+  "defaults": {
+    "autoExposureEnabled": true,
+    "exposureMin": 0.25,
+    "exposureMax": 8.0,
+    "exposureSpeedUp": 1.0,
+    "exposureSpeedDown": 1.0,
+    "exposureSmoothingRange": 100.0,
+    "exposureCompensation": 0.0,
+    "exposureBias": 0.0
+  },
+  "scenarios": [
+    {
+      "name": "constant_dark",
+      "description": "Steady dark scene; the chain should converge to the max clamp and stay there.",
+      "settings": {
+        "autoExposureEnabled": true,
+        "exposureMin": 0.25,
+        "exposureMax": 8.0,
+        "exposureSpeedUp": 1.0,
+        "exposureSpeedDown": 1.0,
+        "exposureSmoothingRange": 100.0,
+        "exposureCompensation": 0.0,
+        "exposureBias": 0.0
+      },
+      "frames": [
+        {
+          "averageLuminance": 0.01125,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.01125,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.01125,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.01125,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.01125,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.01125,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.01125,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.01125,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.01125,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.01125,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.01125,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.01125,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.01125,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.01125,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.01125,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.01125,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.01125,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.01125,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.01125,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.01125,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.01125,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.01125,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.01125,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.01125,
+          "deltaTime": 0.016666666666666666
+        }
+      ]
+    },
+    {
+      "name": "constant_bright",
+      "description": "Steady bright scene; the chain should converge to the min clamp and stay there.",
+      "settings": {
+        "autoExposureEnabled": true,
+        "exposureMin": 0.25,
+        "exposureMax": 8.0,
+        "exposureSpeedUp": 1.0,
+        "exposureSpeedDown": 1.0,
+        "exposureSmoothingRange": 100.0,
+        "exposureCompensation": 0.0,
+        "exposureBias": 0.0
+      },
+      "frames": [
+        {
+          "averageLuminance": 3.5999999999999996,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 3.5999999999999996,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 3.5999999999999996,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 3.5999999999999996,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 3.5999999999999996,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 3.5999999999999996,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 3.5999999999999996,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 3.5999999999999996,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 3.5999999999999996,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 3.5999999999999996,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 3.5999999999999996,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 3.5999999999999996,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 3.5999999999999996,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 3.5999999999999996,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 3.5999999999999996,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 3.5999999999999996,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 3.5999999999999996,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 3.5999999999999996,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 3.5999999999999996,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 3.5999999999999996,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 3.5999999999999996,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 3.5999999999999996,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 3.5999999999999996,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 3.5999999999999996,
+          "deltaTime": 0.016666666666666666
+        }
+      ]
+    },
+    {
+      "name": "dark_to_bright",
+      "description": "Step from a dark to a bright scene at frame 12; exercises the downward branch.",
+      "settings": {
+        "autoExposureEnabled": true,
+        "exposureMin": 0.25,
+        "exposureMax": 8.0,
+        "exposureSpeedUp": 1.0,
+        "exposureSpeedDown": 1.0,
+        "exposureSmoothingRange": 100.0,
+        "exposureCompensation": 0.0,
+        "exposureBias": 0.0
+      },
+      "frames": [
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        }
+      ]
+    },
+    {
+      "name": "bright_to_dark",
+      "description": "Step from a bright to a dark scene at frame 12; exercises the upward branch.",
+      "settings": {
+        "autoExposureEnabled": true,
+        "exposureMin": 0.25,
+        "exposureMax": 8.0,
+        "exposureSpeedUp": 1.0,
+        "exposureSpeedDown": 1.0,
+        "exposureSmoothingRange": 100.0,
+        "exposureCompensation": 0.0,
+        "exposureBias": 0.0
+      },
+      "frames": [
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        }
+      ]
+    },
+    {
+      "name": "clamp_max",
+      "description": "Raw scalar far above ExposureMax on every frame.",
+      "settings": {
+        "autoExposureEnabled": true,
+        "exposureMin": 0.5,
+        "exposureMax": 2.0,
+        "exposureSpeedUp": 0.0,
+        "exposureSpeedDown": 1.0,
+        "exposureSmoothingRange": 100.0,
+        "exposureCompensation": 0.0,
+        "exposureBias": 0.0
+      },
+      "frames": [
+        {
+          "averageLuminance": 0.0018,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.0018,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.0018,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.0018,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.0018,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.0018,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.0018,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.0018,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.0018,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.0018,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.0018,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.0018,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.0018,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.0018,
+          "deltaTime": 0.016666666666666666
+        }
+      ]
+    },
+    {
+      "name": "clamp_min",
+      "description": "Raw scalar far below ExposureMin on every frame.",
+      "settings": {
+        "autoExposureEnabled": true,
+        "exposureMin": 0.5,
+        "exposureMax": 2.0,
+        "exposureSpeedUp": 0.0,
+        "exposureSpeedDown": 1.0,
+        "exposureSmoothingRange": 100.0,
+        "exposureCompensation": 0.0,
+        "exposureBias": 0.0
+      },
+      "frames": [
+        {
+          "averageLuminance": 180.0,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 180.0,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 180.0,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 180.0,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 180.0,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 180.0,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 180.0,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 180.0,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 180.0,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 180.0,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 180.0,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 180.0,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 180.0,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 180.0,
+          "deltaTime": 0.016666666666666666
+        }
+      ]
+    },
+    {
+      "name": "warmup_history_boundary",
+      "description": "Monotonically rising raw scalar across the frame 9 -> frame 10 window switch.",
+      "settings": {
+        "autoExposureEnabled": true,
+        "exposureMin": 0.25,
+        "exposureMax": 8.0,
+        "exposureSpeedUp": 0.0,
+        "exposureSpeedDown": 1.0,
+        "exposureSmoothingRange": 100.0,
+        "exposureCompensation": 0.0,
+        "exposureBias": 0.0
+      },
+      "frames": [
+        {
+          "averageLuminance": 0.18,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.036,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.03,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.025714285714285714,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.0225,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.02,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.018,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.01636363636363636,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.015,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.013846153846153845,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.012857142857142857,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.012,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.01125,
+          "deltaTime": 0.016666666666666666
+        }
+      ]
+    },
+    {
+      "name": "history_ripple",
+      "description": "Alternating raw scalar; exposes how much the inverted window lags the newest sample.",
+      "settings": {
+        "autoExposureEnabled": true,
+        "exposureMin": 0.25,
+        "exposureMax": 8.0,
+        "exposureSpeedUp": 0.0,
+        "exposureSpeedDown": 1.0,
+        "exposureSmoothingRange": 100.0,
+        "exposureCompensation": 0.0,
+        "exposureBias": 0.0
+      },
+      "frames": [
+        {
+          "averageLuminance": 0.18,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.18,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.18,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.18,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.18,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.18,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.18,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.18,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.18,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.18,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.18,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.18,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        }
+      ]
+    },
+    {
+      "name": "speed_up_zero",
+      "description": "ExposureSpeedUp of zero takes the snap branch in both directions.",
+      "settings": {
+        "autoExposureEnabled": true,
+        "exposureMin": 0.25,
+        "exposureMax": 8.0,
+        "exposureSpeedUp": 0.0,
+        "exposureSpeedDown": 5.0,
+        "exposureSmoothingRange": 100.0,
+        "exposureCompensation": 0.0,
+        "exposureBias": 0.0
+      },
+      "frames": [
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        }
+      ]
+    },
+    {
+      "name": "speed_down_zero",
+      "description": "ExposureSpeedDown of zero; the negated zero rate reaches the overshoot guard.",
+      "settings": {
+        "autoExposureEnabled": true,
+        "exposureMin": 0.25,
+        "exposureMax": 8.0,
+        "exposureSpeedUp": 1.0,
+        "exposureSpeedDown": 0.0,
+        "exposureSmoothingRange": 100.0,
+        "exposureCompensation": 0.0,
+        "exposureBias": 0.0
+      },
+      "frames": [
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        }
+      ]
+    },
+    {
+      "name": "asymmetric_speeds",
+      "description": "Fast up, slow down, smoothing disabled so the configured rates apply directly.",
+      "settings": {
+        "autoExposureEnabled": true,
+        "exposureMin": 0.25,
+        "exposureMax": 8.0,
+        "exposureSpeedUp": 4.0,
+        "exposureSpeedDown": 0.25,
+        "exposureSmoothingRange": 0.0,
+        "exposureCompensation": 0.0,
+        "exposureBias": 0.0
+      },
+      "frames": [
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        }
+      ]
+    },
+    {
+      "name": "smoothing_engaged",
+      "description": "Default smoothing range; the rate is halved log-distance, not the configured speed.",
+      "settings": {
+        "autoExposureEnabled": true,
+        "exposureMin": 0.25,
+        "exposureMax": 8.0,
+        "exposureSpeedUp": 4.0,
+        "exposureSpeedDown": 4.0,
+        "exposureSmoothingRange": 100.0,
+        "exposureCompensation": 0.0,
+        "exposureBias": 0.0
+      },
+      "frames": [
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        }
+      ]
+    },
+    {
+      "name": "smoothing_disabled",
+      "description": "Same trajectory with smoothing off, as the control for `smoothing_engaged`.",
+      "settings": {
+        "autoExposureEnabled": true,
+        "exposureMin": 0.25,
+        "exposureMax": 8.0,
+        "exposureSpeedUp": 4.0,
+        "exposureSpeedDown": 4.0,
+        "exposureSmoothingRange": 0.0,
+        "exposureCompensation": 0.0,
+        "exposureBias": 0.0
+      },
+      "frames": [
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        }
+      ]
+    },
+    {
+      "name": "compensation_one_stop",
+      "description": "One stop of exposure compensation; adaptation state must be unaffected.",
+      "settings": {
+        "autoExposureEnabled": true,
+        "exposureMin": 0.25,
+        "exposureMax": 8.0,
+        "exposureSpeedUp": 1.0,
+        "exposureSpeedDown": 1.0,
+        "exposureSmoothingRange": 100.0,
+        "exposureCompensation": 1.0,
+        "exposureBias": 0.0
+      },
+      "frames": [
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        }
+      ]
+    },
+    {
+      "name": "compensation_negative",
+      "description": "Minus one stop of compensation, as the mirror of `compensation_one_stop`.",
+      "settings": {
+        "autoExposureEnabled": true,
+        "exposureMin": 0.25,
+        "exposureMax": 8.0,
+        "exposureSpeedUp": 1.0,
+        "exposureSpeedDown": 1.0,
+        "exposureSmoothingRange": 100.0,
+        "exposureCompensation": -1.0,
+        "exposureBias": 0.0
+      },
+      "frames": [
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        }
+      ]
+    },
+    {
+      "name": "exposure_bias",
+      "description": "Tonemap exposure bias, applied in the shader rather than the adaptation chain.",
+      "settings": {
+        "autoExposureEnabled": true,
+        "exposureMin": 0.25,
+        "exposureMax": 8.0,
+        "exposureSpeedUp": 1.0,
+        "exposureSpeedDown": 1.0,
+        "exposureSmoothingRange": 100.0,
+        "exposureCompensation": 0.0,
+        "exposureBias": 0.5
+      },
+      "frames": [
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        }
+      ]
+    },
+    {
+      "name": "variable_delta_time",
+      "description": "Irregular frame pacing including a long hitch; integration is linear in log2 space.",
+      "settings": {
+        "autoExposureEnabled": true,
+        "exposureMin": 0.25,
+        "exposureMax": 8.0,
+        "exposureSpeedUp": 1.0,
+        "exposureSpeedDown": 1.0,
+        "exposureSmoothingRange": 0.0,
+        "exposureCompensation": 0.0,
+        "exposureBias": 0.0
+      },
+      "frames": [
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666668
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.008333334
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.033333335
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.25
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.004
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666668
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666668
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.1
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666668
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.002
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.05
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666668
+        }
+      ]
+    },
+    {
+      "name": "zero_delta_time_down",
+      "description": "A zero-length frame while adapting downward.",
+      "settings": {
+        "autoExposureEnabled": true,
+        "exposureMin": 0.25,
+        "exposureMax": 8.0,
+        "exposureSpeedUp": 1.0,
+        "exposureSpeedDown": 1.0,
+        "exposureSmoothingRange": 100.0,
+        "exposureCompensation": 0.0,
+        "exposureBias": 0.0
+      },
+      "frames": [
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.0
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.0
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.0
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.0
+        }
+      ]
+    },
+    {
+      "name": "zero_delta_time_up",
+      "description": "A zero-length frame while adapting upward, as the control for the downward case.",
+      "settings": {
+        "autoExposureEnabled": true,
+        "exposureMin": 0.25,
+        "exposureMax": 8.0,
+        "exposureSpeedUp": 1.0,
+        "exposureSpeedDown": 1.0,
+        "exposureSmoothingRange": 100.0,
+        "exposureCompensation": 0.0,
+        "exposureBias": 0.0
+      },
+      "frames": [
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.36,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.0
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.0
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.0
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.0
+        }
+      ]
+    },
+    {
+      "name": "non_finite_luminance",
+      "description": "Average luminance of zero on frames 6 and 7 makes the raw scalar infinite.",
+      "settings": {
+        "autoExposureEnabled": true,
+        "exposureMin": 0.25,
+        "exposureMax": 8.0,
+        "exposureSpeedUp": 0.0,
+        "exposureSpeedDown": 1.0,
+        "exposureSmoothingRange": 100.0,
+        "exposureCompensation": 0.0,
+        "exposureBias": 0.0
+      },
+      "frames": [
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.0,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.0,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.09,
+          "deltaTime": 0.016666666666666666
+        }
+      ]
+    },
+    {
+      "name": "auto_exposure_toggle",
+      "description": "Auto exposure disabled for frames 6-11 and re-enabled afterwards.",
+      "settings": {
+        "autoExposureEnabled": true,
+        "exposureMin": 0.25,
+        "exposureMax": 8.0,
+        "exposureSpeedUp": 1.0,
+        "exposureSpeedDown": 1.0,
+        "exposureSmoothingRange": 100.0,
+        "exposureCompensation": 0.0,
+        "exposureBias": 0.0
+      },
+      "frames": [
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666,
+          "settings": {
+            "autoExposureEnabled": false
+          }
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666,
+          "settings": {
+            "autoExposureEnabled": false
+          }
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666,
+          "settings": {
+            "autoExposureEnabled": false
+          }
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666,
+          "settings": {
+            "autoExposureEnabled": false
+          }
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666,
+          "settings": {
+            "autoExposureEnabled": false
+          }
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666,
+          "settings": {
+            "autoExposureEnabled": false
+          }
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.045,
+          "deltaTime": 0.016666666666666666
+        }
+      ]
+    },
+    {
+      "name": "long_convergence",
+      "description": "Sixty frames of steady input; the tail must be stationary to machine precision.",
+      "settings": {
+        "autoExposureEnabled": true,
+        "exposureMin": 0.25,
+        "exposureMax": 8.0,
+        "exposureSpeedUp": 1.0,
+        "exposureSpeedDown": 1.0,
+        "exposureSmoothingRange": 100.0,
+        "exposureCompensation": 0.0,
+        "exposureBias": 0.0
+      },
+      "frames": [
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        },
+        {
+          "averageLuminance": 0.06,
+          "deltaTime": 0.016666666666666666
+        }
+      ]
+    }
+  ]
+}
