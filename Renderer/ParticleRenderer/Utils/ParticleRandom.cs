@@ -53,6 +53,18 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
             queryCount = 0;
         }
 
+        /// <summary>
+        /// Fixes the seed instead of drawing one, so two runs of one effect take the same values from
+        /// the table. Only a harness comparing runs calls this; in the viewer the drawn seed is the
+        /// instance's identity, and fixing it would make every copy of an effect identical.
+        /// </summary>
+        /// <param name="seed">Any integer; only the low 12 bits are kept, as a drawn seed is.</param>
+        public void SetSeed(int seed)
+        {
+            Seed = seed & 0xFFF;
+            queryCount = 0;
+        }
+
         /// <summary>Takes the next value from the table, in [0, 1).</summary>
         public float Next() => At(queryCount++ + Seed);
 

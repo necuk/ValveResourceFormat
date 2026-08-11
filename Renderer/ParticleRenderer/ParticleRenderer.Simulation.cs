@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.Particles.Constraints;
+using ValveResourceFormat.Renderer.Particles.Diagnostics;
 using ValveResourceFormat.Renderer.Particles.Emitters;
 using ValveResourceFormat.Renderer.Particles.ForceGenerators;
 using ValveResourceFormat.Renderer.Particles.Initializers;
@@ -142,14 +143,22 @@ namespace ValveResourceFormat.Renderer.Particles
             particleCollection.Current[index].CreationTime = systemRenderState.Age - ageAtSpawn;
             particleCollection.Current[index].Age = ageAtSpawn;
 
-            foreach (var initializer in initializers)
+            for (var i = 0; i < initializers.Count; i++)
             {
+                var initializer = initializers[i];
+
                 if (!initializer.RunsInCurrentPhase(systemRenderState))
                 {
                     continue;
                 }
 
+                // Initializers run inside emission rather than over the live array, so a harness
+                // cannot recover an initializer's input from the record before it; hand it both sides.
+                var before = sink == null ? default : particleCollection.Current[index];
+
                 initializer.Initialize(ref particleCollection.Current[index], particleCollection, systemRenderState);
+
+                sink?.InitializerRan(this, i, initializer.ClassName, in before, in particleCollection.Current[index]);
             }
 
             // The initial velocity is encoded into the Verlet state at spawn (prev = pos - vel*dt);
@@ -439,12 +448,16 @@ namespace ValveResourceFormat.Renderer.Particles
                 particle.Age = systemRenderState.Age - particle.CreationTime;
             }
 
+            sink?.StepBegin(this, frameTime);
+
             // Each function that runs displaces the per-particle draws of the ones after it. emitters
             // and initializers inherit whatever the pre-emission walk left behind.
             systemRenderState.Random.OperatorOffset = 0;
 
-            foreach (var preEmissionOperator in preEmissionOperators)
+            for (var i = 0; i < preEmissionOperators.Count; i++)
             {
+                var preEmissionOperator = preEmissionOperators[i];
+
                 if (preEmissionOperator.GetOperatorRunStrength(systemRenderState) <= 0f)
                 {
                     continue;
@@ -462,10 +475,12 @@ namespace ValveResourceFormat.Renderer.Particles
 
                 preEmissionOperator.Operate(ref systemRenderState, frameTime);
                 systemRenderState.Random.OperatorOffset += ParticleRandom.OperatorStride;
+                sink?.FunctionRan(this, ParticleFunctionPhase.PreEmission, i, preEmissionOperator.ClassName);
             }
 
-            foreach (var emitter in emitters)
+            for (var i = 0; i < emitters.Count; i++)
             {
+                var emitter = emitters[i];
                 var strength = emitter.GetOperatorRunStrength(systemRenderState);
 
                 if (strength <= 0.0f)
@@ -474,12 +489,14 @@ namespace ValveResourceFormat.Renderer.Particles
                 }
 
                 emitter.Emit(frameTime, systemRenderState, strength);
+                sink?.FunctionRan(this, ParticleFunctionPhase.Emitter, i, emitter.ClassName);
             }
 
             systemRenderState.Random.OperatorOffset = 0;
 
-            foreach (var particleOperator in operators)
+            for (var i = 0; i < operators.Count; i++)
             {
+                var particleOperator = operators[i];
                 var strength = particleOperator.GetOperatorRunStrength(systemRenderState);
 
                 if (strength <= 0.0f)
@@ -489,12 +506,15 @@ namespace ValveResourceFormat.Renderer.Particles
 
                 particleOperator.Operate(particleCollection, frameTime, systemRenderState, strength);
                 systemRenderState.Random.OperatorOffset += ParticleRandom.OperatorStride;
+                sink?.FunctionRan(this, ParticleFunctionPhase.Operator, i, particleOperator.ClassName);
             }
 
             RunConstraints(frameTime);
 
             // Remove all dead particles
             particleCollection.PruneExpired();
+
+            sink?.StepEnd(this);
 
             particleCollection.PreviousFrameTime = frameTime;
 
@@ -567,7 +587,10 @@ namespace ValveResourceFormat.Renderer.Particles
                         continue;
                     }
 
-                    if (constraint.ApplyConstraint(particleCollection, frameTime, systemRenderState))
+                    var applied = constraint.ApplyConstraint(particleCollection, frameTime, systemRenderState);
+                    sink?.FunctionRan(this, ParticleFunctionPhase.Constraint, i, constraint.ClassName);
+
+                    if (applied)
                     {
                         changed = true;
                         for (var j = 0; j < constraints.Count; j++)

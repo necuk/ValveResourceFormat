@@ -121,7 +121,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 var childSystemDefinition = (ParticleSystem?)childResource.DataBlock;
                 Debug.Assert(childSystemDefinition != null);
 
-                var childSystem = new ParticleRenderer(childSystemDefinition, rendererContext, scene, null, systemRenderState)
+                var childSystem = new ParticleRenderer(childSystemDefinition, rendererContext, scene, null, systemRenderState, harness)
                 {
                     MainControlPoint = MainControlPoint
                 };

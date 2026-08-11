@@ -1,3 +1,4 @@
+using System.Linq;
 using ValveResourceFormat.Renderer.Particles.Utils;
 
 namespace ValveResourceFormat.Renderer.Particles
@@ -178,6 +179,16 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             return Data?.GetControlPointSnapshot(cp) ?? ParentSystem?.GetControlPointSnapshot(cp);
         }
+
+        /// <summary>
+        /// The control points a harness records for this system: the ones it holds in its own right,
+        /// which for a root is all of them and for a child is only what it overrides. Walking up to
+        /// the parent as well would record the same point once per system in the tree.
+        /// </summary>
+        internal IEnumerable<KeyValuePair<int, ControlPoint>> TracedControlPoints
+            => ParentSystem == null
+                ? controlPoints
+                : controlPointOverrides ?? Enumerable.Empty<KeyValuePair<int, ControlPoint>>();
 
         public void SetControlPoint(int cp, ControlPoint point)
         {

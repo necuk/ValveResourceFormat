@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.Particles.Constraints;
+using ValveResourceFormat.Renderer.Particles.Diagnostics;
 using ValveResourceFormat.Renderer.Particles.Emitters;
 using ValveResourceFormat.Renderer.Particles.ForceGenerators;
 using ValveResourceFormat.Renderer.Particles.Initializers;
@@ -45,7 +46,85 @@ namespace ValveResourceFormat.Renderer.Particles
 
         private const string UnsupportedClassWarning = "Unsupported {ComponentType} class '{ClassName}' {File}";
 
-        private readonly Scene scene;
+        // Null only when a harness builds the system without renderers: nothing else reads it.
+        private readonly Scene? scene;
+
+        /// <summary>
+        /// What a harness has attached to this tree, or null in the viewer. Inherited by every child
+        /// so one harness covers the whole tree.
+        /// </summary>
+        private readonly ParticleSimulationHarness? harness;
+
+        /// <summary>
+        /// This system's place in its tree, as a harness names it in its records. Empty in the viewer.
+        /// </summary>
+        internal string TracePath { get; set; } = string.Empty;
+
+        /// <summary>This system's render state, for a harness that seeds or reads it.</summary>
+        internal ParticleSystemRenderState State => systemRenderState;
+
+        /// <summary>This system's direct children, in definition order.</summary>
+        internal IReadOnlyList<ParticleRenderer> ChildSystems => childParticleRenderers;
+
+        /// <summary>
+        /// Where the step records go, or null in the viewer. Held separately from
+        /// <see cref="harness"/> so the per-function hooks are one null check.
+        /// </summary>
+        private readonly ParticleSimulationSink? sink;
+
+        /// <summary>
+        /// Every function this system runs, in the order a step runs them, as (phase, class) pairs.
+        /// A harness writes this into its manifest so a record naming a class can be tied back to the
+        /// authored list it came from.
+        /// </summary>
+        internal IEnumerable<(string Phase, string ClassName)> DescribeFunctions()
+        {
+            foreach (var function in preEmissionOperators)
+            {
+                yield return ("preemission", function.ClassName);
+            }
+
+            foreach (var function in emitters)
+            {
+                yield return ("emitter", function.ClassName);
+            }
+
+            foreach (var function in initializers)
+            {
+                yield return ("initializer", function.ClassName);
+            }
+
+            foreach (var function in operators)
+            {
+                yield return ("operator", function.ClassName);
+            }
+
+            foreach (var function in ForceGenerators)
+            {
+                yield return ("force", function.ClassName);
+            }
+
+            foreach (var function in constraints)
+            {
+                yield return ("constraint", function.ClassName);
+            }
+
+            foreach (var function in renderers)
+            {
+                yield return ("renderer", function.ClassName);
+            }
+
+            foreach (var className in unbuiltRendererClasses)
+            {
+                yield return ("renderer", className);
+            }
+        }
+
+        /// <summary>
+        /// The renderer classes a harness skipped building. They still belong in a description of what
+        /// the system is, so that a trace taken without them says which drawing it did not do.
+        /// </summary>
+        private readonly List<string> unbuiltRendererClasses = [];
 
         public AABB LocalBoundingBox { get; private set; } = new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue));
 
@@ -149,13 +228,15 @@ namespace ValveResourceFormat.Renderer.Particles
         private int particlesEmitted;
         private ParticleSystemRenderState systemRenderState;
 
-        public ParticleRenderer(ParticleSystem particleSystem, RendererContext rendererContext, Scene scene, ParticleSnapshot? particleSnapshot = null, ParticleSystemRenderState? parentSystemRenderState = null)
+        public ParticleRenderer(ParticleSystem particleSystem, RendererContext rendererContext, Scene? scene, ParticleSnapshot? particleSnapshot = null, ParticleSystemRenderState? parentSystemRenderState = null, ParticleSimulationHarness? harness = null)
         {
             emitParticleAction = EmitParticle;
 
             childParticleRenderers = [];
             this.rendererContext = rendererContext;
             this.scene = scene;
+            this.harness = harness;
+            sink = harness?.Sink;
 
             var parse = new ParticleDefinitionParser(particleSystem.Data, rendererContext.Logger);
             BehaviorVersion = parse.Int32("m_nBehaviorVersion", 13);
@@ -441,7 +522,16 @@ namespace ValveResourceFormat.Renderer.Particles
                 }
 
                 var rendererClass = rendererInfo.GetStringProperty("_class");
-                if (ParticleControllerFactory.TryCreateRender(rendererClass, rendererInfo, rendererContext, scene, out var renderer))
+
+                // Every renderer allocates GL objects as it is built, so a harness simulating the
+                // system with no graphics device records what it would have built and moves on.
+                if (harness?.SkipRenderers == true)
+                {
+                    unbuiltRendererClasses.Add(rendererClass);
+                    continue;
+                }
+
+                if (ParticleControllerFactory.TryCreateRender(rendererClass, rendererInfo, rendererContext, scene!, out var renderer))
                 {
                     renderers.Add(renderer);
                 }

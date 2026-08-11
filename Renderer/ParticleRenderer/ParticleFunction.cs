@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using ValveResourceFormat.Serialization.KeyValues;
 using Microsoft.Extensions.Logging;
 
 namespace ValveResourceFormat.Renderer.Particles
@@ -27,9 +28,18 @@ namespace ValveResourceFormat.Renderer.Particles
         readonly bool StrengthFastPath;
         protected readonly ILogger Logger;
 
+        /// <summary>
+        /// The authored <c>_class</c> this function was created from, kept so a record of what ran
+        /// names the engine's class rather than the type we happen to implement it with — several
+        /// classes share one implementation, and an attribution that collapsed them would point at
+        /// the wrong operator.
+        /// </summary>
+        public string ClassName { get; }
+
         public ParticleFunction(ParticleDefinitionParser parse)
         {
             Logger = parse.Logger;
+            ClassName = parse.Data.ContainsKey("_class") ? parse.Data.GetStringProperty("_class") : GetType().Name;
             opStrengthInput = parse.NumberProvider("m_flOpStrength", opStrengthInput);
             opEndCapState = parse.Enum("m_nOpEndCapState", opEndCapState);
             OpStartFadeInTime = parse.Float("m_flOpStartFadeInTime");

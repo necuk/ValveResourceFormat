@@ -66,63 +66,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         // Outside the editor an effect is played under one of its control point configurations, and the
         // configuration is where several constants its operators depend on actually live - a global scale
         // control point that has to read 0.5 rather than 0, or a flag switching an effect into its
-        // first-person sizing. Those arrive as a driver's literal offset, so seed the control points that
-        // carry one. Points a driver leaves at zero are skipped: control point 0 is the effect's placement
-        // and comes from the node transform, and the rest we would only be writing their default back.
+        // first-person sizing. A headless harness has to seed the same points to be running the same
+        // effect, so the reading lives in ParticleControlPointDrivers and both go through it.
         private void ApplyRuntimeControlPointValues(ParticleSystem particleSystem)
-        {
-            var configurations = particleSystem.Data.GetArray("m_controlPointConfigurations");
-            if (configurations == null)
-            {
-                return;
-            }
-
-            // Viewmodel effects carry a first-person configuration; everything else plays under "game".
-            var viewModelEffect = particleSystem.Data.GetStringProperty("m_nViewModelEffect") == "INHERITABLE_BOOL_TRUE";
-            var wantedConfiguration = viewModelEffect ? "fps_view" : "game";
-
-            KVObject? chosen = null;
-
-            foreach (var configuration in configurations)
-            {
-                var name = configuration.GetStringProperty("m_name");
-
-                if (string.Equals(name, wantedConfiguration, StringComparison.OrdinalIgnoreCase))
-                {
-                    chosen = configuration;
-                    break;
-                }
-
-                // Any non-preview configuration beats nothing, but keep looking for the wanted one.
-                if (chosen == null && !string.Equals(name, "preview", StringComparison.OrdinalIgnoreCase))
-                {
-                    chosen = configuration;
-                }
-            }
-
-            var drivers = chosen?.GetArray("m_drivers");
-            if (drivers == null)
-            {
-                return;
-            }
-
-            foreach (var driver in drivers)
-            {
-                var controlPoint = driver.ContainsKey("m_iControlPoint") ? driver.GetInt32Property("m_iControlPoint") : 0;
-                if (controlPoint == 0)
-                {
-                    continue;
-                }
-
-                var offset = ReadDriverVector(driver, "m_vecOffset");
-                if (offset == Vector3.Zero)
-                {
-                    continue;
-                }
-
-                GetControlPoint(controlPoint).Position = offset;
-            }
-        }
+            => ParticleControlPointDrivers.ApplyRuntimeValues(particleSystem, GetControlPoint);
 
         /// <summary>
         /// Creates particle nodes for the particle systems referenced by a model's keyvalues
@@ -399,15 +346,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
-        // Driver vectors can have null components (e.g. m_angOffset = [null, null, null]),
-        // which the plain ToVector3 conversion throws on; GetFloatArray maps null elements to 0.
         private static Vector3 ReadDriverVector(KVObject driver, string key)
-        {
-            var components = driver.GetFloatArray(key);
-            return components is { Length: >= 3 }
-                ? new Vector3(components[0], components[1], components[2])
-                : Vector3.Zero;
-        }
+            => ParticleControlPointDrivers.ReadVector(driver, key);
 
         private Matrix4x4? seededTransform;
 
