@@ -906,7 +906,7 @@ public class Renderer
 
         static void Dispatch(Shader shader, RenderTexture texture, int x, int y)
         {
-            var minLuminance = 0.005f / 256.0f;
+            var minLuminance = 0.005f; // matches the max(luma, 0.005) floor in histogram.comp.slang
             var maxLuminance = 8f; //65_204f;
             var logMin = MathF.Log2(minLuminance);
             var logRange = MathF.Log2(maxLuminance) - logMin;
