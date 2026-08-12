@@ -88,7 +88,8 @@ void main()
     {
         uint weightedSum = localHistogram[0];
         float averageBin = totalPixels > 0u ? float(weightedSum) / float(totalPixels) : 0.0;
-        float logLuma = averageBin * (logLuminanceRange / 255.0) + logMinLuminance;
+        // Binning truncates, so each bin covers [bin, bin + 1) / 255; decode at the bin center
+        float logLuma = (averageBin + 0.5) * (logLuminanceRange / 255.0) + logMinLuminance;
         outputLuminance = exp2(logLuma);
     }
 #endif
