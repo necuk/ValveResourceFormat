@@ -498,10 +498,29 @@ public partial class GltfModelExporter
             drawCalls.AddRange(objectDrawCalls);
         }
 
+        // Keep only the fragments at the lowest present LoD level (usually LoD0, though some
+        // aggregates leave it empty). A mask of 0 means no LoD, so the fragment always renders.
+        // Mirrors ValveResourceFormat.Renderer.SceneAggregate.CreateFragments - without this
+        // filter, aggregates that bake more than one LoD tier into one agg_merge resource export
+        // every tier's copy of every fragment into a single glTF mesh.
+        var combinedLodMask = 0u;
+        foreach (var fragmentData in aggregateMeshes)
+        {
+            combinedLodMask |= fragmentData.GetUInt32Property("m_nLODGroupMask");
+        }
+        var lowestLodBit = combinedLodMask == 0 ? 0u : 1u << ValveResourceFormat.ResourceTypes.ModelLodInfo.LowestSetLevel(combinedLodMask);
+
         var id = 0;
 
         foreach (var fragmentData in aggregateMeshes)
         {
+            var lodGroupMask = fragmentData.GetUInt32Property("m_nLODGroupMask");
+            var isHighestDetailMesh = lodGroupMask == 0 || (lodGroupMask & lowestLodBit) != 0;
+            if (!isHighestDetailMesh)
+            {
+                continue;
+            }
+
             var meshName = $"{name}_fragment{++id}";
             var drawCallIndex = fragmentData.GetInt32Property("m_nDrawCallIndex");
             var drawCall = drawCalls[drawCallIndex];
