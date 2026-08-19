@@ -74,7 +74,8 @@ void main()
     }
 
 #if D_EXPOSURE == 1
-    vec2 blueNoiseCoords = vec2(coord) * g_vBlueNoiseDitherParams.z + g_vBlueNoiseDitherParams.xy;
+    vec2 noiseCoord = vec2(coord.x, destSize.y - 1 - coord.y);
+    vec2 blueNoiseCoords = noiseCoord * g_vBlueNoiseDitherParams.z + g_vBlueNoiseDitherParams.xy;
     vec3 blueNoise = textureLod(g_tBlueNoise, blueNoiseCoords, 0.0).rgb;
     resolved = clamp(resolved + (blueNoise - 0.5) * g_vBlueNoiseDitherParams.w, 0.0, 0.99);
 #else

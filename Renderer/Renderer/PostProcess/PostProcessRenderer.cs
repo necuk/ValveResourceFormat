@@ -26,6 +26,9 @@ namespace ValveResourceFormat.Renderer.PostProcess
 
         /// <summary>Gets or sets the blue noise texture used for dithering in the tonemap pass.</summary>
         public RenderTexture? BlueNoise { get; set; }
+
+        /// <summary>Gets or sets the blue noise dither offset, replacing the per-frame random offset when set.</summary>
+        public Vector2? DitherOffsetOverride { get; set; }
         private readonly Random random = new();
 
         /// <summary>Gets or sets the scene average luminance used for auto-exposure calculations.</summary>
@@ -252,7 +255,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
             Debug.Assert(BlueNoise != null);
 
             using var _ = RendererContext.RenderState.Scope(depthTest: false, depthWrite: false);
-            var ditherOffset = new Vector2(random.NextSingle(), random.NextSingle());
+            var ditherOffset = DitherOffsetOverride ?? new Vector2(random.NextSingle(), random.NextSingle());
 
             using (new GLDebugGroup("MSAA Resolve"))
             {
