@@ -145,6 +145,11 @@ public class Renderer
     /// </summary>
     public RenderTexture? ResolvedSceneDepth { get; private set; }
 
+    private Framebuffer? WaterEffectsBuffer { get; set; }
+
+    private Shader waterEffectsDepthShader = null!;
+    private bool waterEffectsMapIsNeutral;
+
     /// <summary>
     /// When set, forces <see cref="ResolvedSceneDepth"/> to be refreshed this frame even if no material
     /// or occlusion pass requests it. Used by overlays (e.g. world-space text) that need the scene depth
@@ -284,6 +289,7 @@ public class Renderer
         Textures.Add(new(ReservedTextureSlots.BarnLightShadowDepth, "g_tBarnLightShadowDepth", BarnLightShadowBuffer.Depth));
 
         depthOnlyShader = Scene.RendererContext.ShaderLoader.LoadShader("depth_only");
+        waterEffectsDepthShader = Scene.RendererContext.ShaderLoader.LoadShader("water_effects_depth");
 
         histogramShaders[0] = Scene.RendererContext.ShaderLoader.LoadShader("histogram");
         histogramShaders[1] = Scene.RendererContext.ShaderLoader.LoadShader("histogram", ("D_HISTOGRAM_MODE", 1));
@@ -299,6 +305,13 @@ public class Renderer
 
         Textures.Add(new(ReservedTextureSlots.SceneColor, "g_tSceneColor", ResolvedSceneColor));
         Textures.Add(new(ReservedTextureSlots.SceneDepth, "g_tSceneDepth", ResolvedSceneDepth));
+
+        WaterEffectsBuffer = Framebuffer.Prepare(nameof(WaterEffectsBuffer), 4, 4, 0,
+            ImageFormat.RGBA16161616, ImageFormat.D32);
+        WaterEffectsBuffer.Initialize();
+        WaterEffectsBuffer.ClearColor = new OpenTK.Mathematics.Color4(0.5f, 0.5f, 0.5f, 0f);
+        WaterEffectsBuffer.SetColorSamplerState(TextureMinFilter.Linear, TextureMagFilter.Linear, TextureWrapMode.ClampToEdge);
+        SetupWaterEffectsTexture();
 
         EnsureDepthPyramidSize(256, 256);
     }
@@ -537,6 +550,11 @@ public class Renderer
         Scene.SetSceneBuffers();
 
         Scene.RenderOpaqueLayer(renderContext);
+        if (Scene.HasWaterEffects)
+        {
+            GrabFramebufferCopy(MainFramebuffer, false, true);
+        }
+        RenderWaterEffectsMap(renderContext);
         RenderTranslucentLayer(Scene, renderContext);
     }
 
@@ -664,7 +682,7 @@ public class Renderer
             var skyboxScene = SkyboxScene;
             var render3DSkybox = ShowSkybox && skyboxScene != null;
             var (copyColor, copyDepth) = (Scene.WantsSceneColor, Scene.WantsSceneDepth);
-            copyDepth |= ForceResolveSceneDepth;
+            copyDepth |= ForceResolveSceneDepth || Scene.HasWaterEffects;
             Postprocess.HasOutlineObjects = Scene.HasOutlineObjects;
 
             if (render3DSkybox)
@@ -721,6 +739,11 @@ public class Renderer
                         SkyboxScene.DepthPyramidValid = true;
                     }
                 }
+            }
+
+            if (isStandardPass)
+            {
+                RenderWaterEffectsMap(renderContext);
             }
 
             if (render3DSkybox)
@@ -1009,6 +1032,71 @@ public class Renderer
         return OutlineMaskBuffer;
     }
 
+    private void SetupWaterEffectsTexture()
+    {
+        Debug.Assert(WaterEffectsBuffer?.Color != null);
+
+        Textures.RemoveAll(static texture => texture.Slot == ReservedTextureSlots.WaterEffectsMap);
+        Textures.Add(new(ReservedTextureSlots.WaterEffectsMap, "g_tWaterEffectsMap", WaterEffectsBuffer.Color));
+    }
+
+    private void RenderWaterEffectsMap(Scene.RenderContext renderContext)
+    {
+        Debug.Assert(WaterEffectsBuffer != null);
+
+        if (!Scene.HasWaterEffects && waterEffectsMapIsNeutral)
+        {
+            return;
+        }
+
+        using var debugGroup = new GLDebugGroup("Water Effects Render");
+        using var depthRange = RendererContext.RenderState.ScopeDynamic(depthRange: DepthRange.Scene);
+
+        var sceneFramebuffer = renderContext.Framebuffer;
+        var previousScene = renderContext.Scene;
+        var width = Math.Max(1, (sceneFramebuffer.Width + 5) / 6);
+        var height = Math.Max(1, (sceneFramebuffer.Height + 2) / 3);
+
+        if (WaterEffectsBuffer.Resize(width, height))
+        {
+            SetupWaterEffectsTexture();
+        }
+
+        renderContext.Framebuffer = WaterEffectsBuffer;
+        renderContext.Scene = Scene;
+        Scene.SetSceneBuffers();
+
+        GL.Viewport(0, 0, width, height);
+        WaterEffectsBuffer.BindAndClear();
+
+        if (Scene.HasWaterEffects)
+        {
+            Debug.Assert(ResolvedSceneDepth != null);
+
+            using (RendererContext.RenderState.Scope(depthTest: true, depthWrite: true,
+                depthFunc: RsComparison.Always, blend: false, colorWriteMask: RsColorWriteEnableBits.None))
+            {
+                waterEffectsDepthShader.Use();
+                waterEffectsDepthShader.SetTexture(0, "g_tSceneDepth", ResolvedSceneDepth);
+                GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
+                GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+            }
+
+            using (RendererContext.RenderState.Scope(depthTest: true, depthWrite: false,
+                depthFunc: RsComparison.CloserEqual))
+            {
+                Scene.RenderWaterEffectsLayer(renderContext);
+            }
+        }
+
+        GL.Viewport(0, 0, sceneFramebuffer.Width, sceneFramebuffer.Height);
+        sceneFramebuffer.Bind(FramebufferTarget.Framebuffer);
+        renderContext.Framebuffer = sceneFramebuffer;
+        renderContext.Scene = previousScene;
+        previousScene.SetSceneBuffers();
+        waterEffectsMapIsNeutral = !Scene.HasWaterEffects;
+    }
+
     private void EnsureResolvedTextureSize(int width, int height)
     {
         if (ResolvedSceneColor!.Width != width ||
@@ -1085,6 +1173,7 @@ public class Renderer
         PerfStats?.Dispose();
         ResolvedSceneColor?.Delete();
         ResolvedSceneDepth?.Delete();
+        WaterEffectsBuffer?.Delete();
         OutlineMaskBuffer?.Delete();
         ShadowDepthBuffer?.Delete();
         BarnLightShadowBuffer?.Delete();

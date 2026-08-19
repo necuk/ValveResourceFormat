@@ -764,6 +764,8 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets whether there are any selected nodes queued for outline rendering.</summary>
         public bool HasOutlineObjects => renderLists[RenderPass.Outline].Count > 0;
 
+        internal bool HasWaterEffects => renderLists[RenderPass.WaterEffects].Count > 0;
+
         private readonly Dictionary<RenderPass, List<MeshBatchRenderer.Request>> renderLists = new()
         {
             [RenderPass.OpaqueAggregate] = [],
@@ -771,6 +773,7 @@ namespace ValveResourceFormat.Renderer
             [RenderPass.Opaque] = [],
             [RenderPass.StaticOverlay] = [],
             [RenderPass.OpaqueRefract] = [],
+            [RenderPass.WaterEffects] = [],
             [RenderPass.Water] = [],
             [RenderPass.Translucent] = [],
             [RenderPass.Outline] = [],
@@ -987,6 +990,11 @@ namespace ValveResourceFormat.Renderer
                     if ((customPasses & CustomRenderPasses.Translucent) != 0)
                     {
                         customLists[RenderPass.Translucent].Add(customRender);
+                    }
+
+                    if ((customPasses & CustomRenderPasses.WaterEffects) != 0)
+                    {
+                        renderLists[RenderPass.WaterEffects].Add(customRender);
                     }
 
                     if (node.IsSelected)
@@ -1542,6 +1550,12 @@ namespace ValveResourceFormat.Renderer
                 renderContext.RenderPass = RenderPass.Translucent;
                 MeshBatchRenderer.Render(renderLists[RenderPass.Translucent], renderContext);
             }
+        }
+
+        internal void RenderWaterEffectsLayer(RenderContext renderContext)
+        {
+            renderContext.RenderPass = RenderPass.WaterEffects;
+            MeshBatchRenderer.Render(renderLists[RenderPass.WaterEffects], renderContext);
         }
 
         /// <summary>

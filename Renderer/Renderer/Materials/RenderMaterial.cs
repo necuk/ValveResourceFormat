@@ -75,6 +75,10 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>Resolved scene depth buffer.</summary>
         [SamplerName("g_tSceneDepth")]
         SceneDepth,
+#pragma warning disable CS1591
+        [SamplerName("g_tWaterEffectsMap")]
+        WaterEffectsMap,
+#pragma warning restore CS1591
         /// <summary>Morph composite texture for vertex animation.</summary>
         [SamplerName("morphCompositeTexture")]
         MorphCompositeTexture,

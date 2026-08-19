@@ -62,8 +62,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// </summary>
         protected float DepthBias { get; }
 
+        protected bool OnlyRenderInEffectsWaterPass { get; }
+
         protected ParticleFunctionRenderer(ParticleDefinitionParser parse) : base(parse)
         {
+            OnlyRenderInEffectsWaterPass = parse.Boolean("m_bOnlyRenderInEffectsWaterPass", false);
             RadiusScale = parse.NumberProvider("m_flRadiusScale", RadiusScale);
             AlphaScale = parse.NumberProvider("m_flAlphaScale", AlphaScale);
             ColorScale = parse.VectorProvider("m_vecColorScale", ColorScale);
@@ -115,10 +118,16 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             shader.SetUniform1("uMaxLuminanceFrameBlend", MaxLuminanceFrameBlend);
         }
 
+        private RenderPass pass = RenderPass.Translucent;
+
         /// <summary>
         /// The pass this renderer draws in.
         /// </summary>
-        public RenderPass Pass { get; protected set; } = RenderPass.Translucent;
+        public RenderPass Pass
+        {
+            get => OnlyRenderInEffectsWaterPass ? RenderPass.WaterEffects : pass;
+            protected set => pass = value;
+        }
 
         public virtual void Update(ParticleCollection particles, ParticleSystemRenderState systemRenderState)
         {

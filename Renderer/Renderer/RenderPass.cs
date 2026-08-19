@@ -17,6 +17,9 @@ namespace ValveResourceFormat.Renderer
         StaticOverlay,
         /// <summary>Geometry that reads the scene color.</summary>
         OpaqueRefract,
+#pragma warning disable CS1591
+        WaterEffects,
+#pragma warning restore CS1591
         /// <summary>Water surface pass.</summary>
         Water,
         /// <summary>Translucent (alpha-blended) pass.</summary>
@@ -47,6 +50,10 @@ namespace ValveResourceFormat.Renderer
         /// Routes the node's drawing into the dedicated first-person viewmodel layer.
         /// </summary>
         Viewmodel = 1 << 2,
+
+#pragma warning disable CS1591
+        WaterEffects = 1 << 3,
+#pragma warning restore CS1591
 
         /// <summary>Draws in the opaque and translucent passes, the default for a node that draws itself.</summary>
         Default = Opaque | Translucent,
