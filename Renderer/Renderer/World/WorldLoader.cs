@@ -73,6 +73,7 @@ namespace ValveResourceFormat.Renderer.World
 
         private const float PlayerEyeHeight = 64f;
         private int spawnCameraPriority = int.MaxValue;
+        private SceneSkybox2D? skyboxMapSkybox2D;
 
         /// <summary>The 3D skybox scene, if one was found during entity loading.</summary>
         public Scene? SkyboxScene { get; set; }
@@ -249,6 +250,12 @@ namespace ValveResourceFormat.Renderer.World
                 }
 
                 LoadEntitiesFromLump(entityLump, "Entities", Matrix4x4.Identity);
+            }
+
+            if (skyboxMapSkybox2D != null)
+            {
+                Skybox2D?.Delete();
+                Skybox2D = skyboxMapSkybox2D;
             }
 
             ResolveAttachmentParenting();
@@ -1472,6 +1479,7 @@ namespace ValveResourceFormat.Renderer.World
             SkyboxScene.LightingInfo.LightingData.IsSkybox = 1u;
 
             var skyboxResult = LoadMap(targetmapname, SkyboxScene);
+            skyboxMapSkybox2D = skyboxResult.Skybox2D;
 
             // Take origin and angles from skybox_reference
             EntityTransformHelper.GetTransformComponents(entity, out _, out var skyboxReferenceRotationMatrix, out var skyboxReferencePositionMatrix);
