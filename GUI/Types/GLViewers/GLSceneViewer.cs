@@ -369,6 +369,8 @@ namespace GUI.Types.GLViewers
 
             Renderer.Postprocess.FullScreenGamma = 2.01f; // 100% Brightness
             Renderer.Postprocess.ExposureCompensation = -0.4f; // eyeballed
+            Renderer.Postprocess.FullScreenGamma = 2.2f;
+            Renderer.Postprocess.ExposureCompensation = 0.0f;
 
             baseGrid = new InfiniteGrid(Scene);
             SelectedNodeRenderer = new(Scene.RendererContext);

@@ -46,7 +46,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         public const float PreTonemapScale = 2.8f;
 
         /// <summary>Gets the white point the curve is actually normalized against: <see cref="WhitePoint"/> scaled by <see cref="PreTonemapScale"/>.</summary>
-        public readonly float EffectiveWhitePoint => WhitePoint * PreTonemapScale;
+        public readonly float EffectiveWhitePoint => MathF.Pow(2.0f, WhitePoint);
         // The following params aren't used, I think?
         /*float LuminanceSource; // CS2
         float ExposureBiasShadows; // CS2
@@ -219,11 +219,11 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         /// <summary>Initializes a new <see cref="ExposureSettings"/> with default values.</summary>
         public ExposureSettings()
         {
-            AutoExposureEnabled = false;
+            AutoExposureEnabled = true;
             ExposureMin = 0.25f;
             ExposureMax = 8.0f;
             ExposureSpeedUp = 1.0f;
-            ExposureSpeedDown = 1.0f;
+            ExposureSpeedDown = 2.0f;
             ExposureSmoothingRange = 100f;
             ExposureCompensation = 0.0f;
         }

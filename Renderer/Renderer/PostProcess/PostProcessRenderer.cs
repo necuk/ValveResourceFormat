@@ -381,9 +381,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
                 return exposure;
             }
 
-            var curveInput = State.TonemapSettings.InvertTonemapping(MiddleGrey);
-            ExposureTargetLuminance = float.IsNaN(curveInput) ? MiddleGrey : curveInput;
-
+            ExposureTargetLuminance = MiddleGrey;
             var rawScalar = ExposureTargetLuminance / AverageLuminance;
             if (!float.IsFinite(rawScalar))
             {
