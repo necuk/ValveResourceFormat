@@ -409,6 +409,8 @@ public class Renderer
             }
 
             var blueNoise = Scene.RendererContext.MaterialLoader.LoadTexture(blueNoiseResource);
+            blueNoise.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
+            blueNoise.SetWrapMode(TextureWrapMode.Repeat);
             Postprocess.BlueNoise = blueNoise;
             Textures.Add(new(ReservedTextureSlots.BlueNoise, "g_tBlueNoise", blueNoise));
         }
