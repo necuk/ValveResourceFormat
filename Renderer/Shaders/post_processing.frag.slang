@@ -130,7 +130,10 @@ void main()
         }
 
         vColor.rgb = pow(ClampToPositive(vColor.rgb), vec3(g_flFullScreenGamma * (1.0 / 2.2)));
-        vColor.rgb = DitherColor(vColor.rgb);
+        if (!g_bColorBufferPreExposed)
+        {
+            vColor.rgb = DitherColor(vColor.rgb);
+        }
     }
 
     outputColor = vColor;

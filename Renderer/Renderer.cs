@@ -408,7 +408,7 @@ public class Renderer
                 blueNoiseResource.Read(blueNoiseStream);
             }
 
-            var blueNoise = Scene.RendererContext.MaterialLoader.LoadTexture(blueNoiseResource);
+            var blueNoise = Scene.RendererContext.MaterialLoader.LoadTexture(blueNoiseResource, srgbRead: true);
             blueNoise.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
             blueNoise.SetWrapMode(TextureWrapMode.Repeat);
             Postprocess.BlueNoise = blueNoise;
