@@ -85,6 +85,8 @@ in vec4 vColorBlendValues;
     uniform float g_fTextureRoughnessBrightness2 = 1.0;
     uniform float g_fTextureRoughnessContrast2 = 1.0;
     uniform float g_fTintMaskBrightness2 = 1.0;
+    uniform float g_flNormalCombine2 = 1.0;
+    uniform float g_flNormalReplace2 = 0.0;
     uniform float g_fTintMaskContrast2 = 1.0;
     uniform int g_nVertexColorMode2 = 0;
     uniform vec3 g_vAmbientOcclusionLevels2 = vec3(0, 0.5, 1);
@@ -307,7 +309,6 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
 
     float tintMask1 = saturate(((height.g - 0.5) * g_fTintMaskContrast1 + 0.5) * g_fTintMaskBrightness1);
     height.a = g_bMetalness1 ? height.a : 0.0;
-    normal.rg = (normal.rg - 0.5) * g_fTextureNormalContrast1 + 0.5;
     normal.b = saturate(((normal.b - 0.5) * g_fTextureRoughnessContrast1 + 0.5) * g_fTextureRoughnessBrightness1);
 
     vec3 overlayFactor = vec3(1.0);
@@ -355,6 +356,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
 
     // Blending
 #if (GameVfx_csgo_environment_blend != 0)
+    vec3 engineBlendWorldNormal = vec3(0.0, 0.0, 1.0);
     vec4 color2 = texture(g_tColor2, vTexCoord2.xy);
     vec4 height2 = texture(g_tHeight2, vTexCoord2.xy);
     vec4 normal2 = texture(g_tNormal2, vTexCoord2.xy);
@@ -364,7 +366,6 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
 
     float tintMask2 = saturate(((height2.g - 0.5) * g_fTintMaskContrast2 + 0.5) * g_fTintMaskBrightness2);
     height2.a = g_bMetalness2 ? height2.a : 0.0;
-    normal2.rg = (normal2.rg - 0.5) * g_fTextureNormalContrast2 + 0.5;
     normal2.b = saturate(((normal2.b - 0.5) * g_fTextureRoughnessContrast2 + 0.5) * g_fTextureRoughnessBrightness2);
 
     vec4 color2MaybeColorCorrected = mix(color2, vec4((color2 * g_mTextureAdjust2).rgb, color2.a), bvec4(g_nColorCorrectionMode2 == 1));
@@ -445,7 +446,14 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     height.r = height.r * weightBase2 + height2.r * weight2;
     height.g = height.g * weightBase2 + height2.g * weight2;
     height.b = height.b * weightBase2 + height2.b * weight2;
-    normal.rg = normal.rg * weightBase2 + normal2.rg * weight2;
+    {
+        vec3 N1w = calculateWorldNormal(DecodeHemiOctahedronNormal(normal.rg), mat.GeometricNormal, mat.Tangent, mat.Bitangent);
+        N1w = normalize(mix(mat.GeometricNormal, N1w, g_fTextureNormalContrast1));
+        vec3 N2w = calculateWorldNormal(DecodeHemiOctahedronNormal(normal2.rg), mat.GeometricNormal, mat.Tangent, mat.Bitangent);
+        N2w = normalize(mix(mat.GeometricNormal, N2w, g_fTextureNormalContrast2));
+        vec3 blendN = mix(N1w, normalize(mix(mat.GeometricNormal, (N1w + N2w) * 0.5, 2.0)), weight2 * g_flNormalCombine2);
+        engineBlendWorldNormal = mix(blendN, N2w, weight2 * g_flNormalReplace2);
+    }
     normal.b = normal.b * (1.0 + ((normal2.b - normal.b) * 2.0 * weight2));
     aoLevels = aoLevels * mix(vec3(1.0), g_vAmbientOcclusionLevels2.xyz, weight2);
 
@@ -532,7 +540,11 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     mat.AmbientOcclusion = mix(aoLevels.x, aoLevels.z, pow(max(mat.AmbientOcclusion, 0.0), max(aoLevels.y, 0.001)));
 
     // Normals and Roughness
-    mat.NormalMap = DecodeHemiOctahedronNormal(normal.rg);
+    #if (GameVfx_csgo_environment_blend != 0)
+        mat.NormalMap = vec3(0.0, 0.0, 1.0);
+    #else
+        mat.NormalMap = DecodeHemiOctahedronNormal(normal.rg);
+    #endif
     mat.RoughnessTex = normal.bb;
 
     // Detail texture
@@ -543,6 +555,11 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     #endif
 
     mat.Normal = calculateWorldNormal(mat.NormalMap, mat.GeometricNormal, mat.Tangent, mat.Bitangent);
+    mat.Normal = normalize(mix(mat.GeometricNormal, mat.Normal, g_fTextureNormalContrast1));
+
+    #if (GameVfx_csgo_environment_blend != 0)
+        mat.Normal = engineBlendWorldNormal;
+    #endif
 
     mat.Height = height.r;
     mat.Metalness = height.a;
