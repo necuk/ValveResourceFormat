@@ -45,7 +45,7 @@ uniform int g_nVertexColorMode1 = 0; // 0=Masked by tint, 1=Unmasked, 2=Disabled
 uniform vec3 g_vAmbientOcclusionLevels1 = vec3(0, 0.5, 1);
 
 uniform float g_flHeightMapScale1 = 1.0;
-uniform float g_flHeightMapZeroPoint1 = 0.5;
+uniform float g_flHeightMapZeroPoint1 = 0.0; // engine default (live cbuffer, 3 materials invariant)
 
 uniform mat4 g_mTextureColorAdjust1;
 uniform mat4 g_mTextureAdjust1;
@@ -86,8 +86,8 @@ in vec4 vColorBlendValues;
     uniform int g_nVertexColorMode2 = 0;
     uniform vec3 g_vAmbientOcclusionLevels2 = vec3(0, 0.5, 1);
 
-    uniform float g_flHeightMapScale2 = 1.0;
-    uniform float g_flHeightMapZeroPoint2 = 0.5;
+    uniform float g_flHeightMapScale2 = 0.5; // engine default (live cbuffer, 3 materials invariant)
+    uniform float g_flHeightMapZeroPoint2 = 0.0;
 
     uniform mat4 g_mTextureColorAdjust2;
     uniform mat4 g_mTextureAdjust2;
@@ -119,7 +119,7 @@ in vec4 vColorBlendValues;
 
     // Colour composite parameters, shared by both blend paths. At these defaults the
     // composite is a plain lerp toward the upper layer.
-    uniform float g_flColorOverlay2 = 0.0;
+    uniform float g_flColorOverlay2 = 0.0; // engine live table says overlay=1/replace=0, but with the ported factor law that composite still overshoots on part of the materials (see session 2026-08-21_vrf_plates_residual_attack, variants A-C); kept at the lerp form until the overlay weight is aligned per material
     uniform float g_flColorReplace2 = 1.0;
     #if (F_ENABLE_LAYER_3 == 1)
         uniform float g_flColorOverlay3 = 0.0;
@@ -144,6 +144,14 @@ in vec4 vColorBlendValues;
     // Picks the height-band blend below over the normalized two-height blend in GetBlendWeights.
     uniform int F_USE_NEW_BLENDING;
     #define bUseNewBlending (F_USE_NEW_BLENDING == 1)
+
+    // Engine blend-softness growth (csgo_environment_blend static256.dyn4, dump lines
+    // ~549-790). g_flBlendSoftness2 / g_vFacingDirection2 / spread live in the vertex
+    // stage (shared global block) and the VS already folds Softness2 into
+    // vColorBlendValues.w, so the fragment law below must NOT add it again.
+    // Live cbuffer table: inferno draw groups eid4490/4598/5127 (receipt:
+    // docs/sessions/2026-08-21_vrf_plates_residual_attack/blend_draw_state.json).
+    uniform float g_flBlendSoftnessDistanceModifierStrength = 0.0; // authored per material at every live draw (0.2/0.0/0.1); engine default unobserved, 0.0 keeps the growth term off for unauthored materials
 
     // Height-band blend. Every layer above the first gets a single [0, 1] weight from a
     // height difference measured against the layers below it, which is carried upward.
@@ -216,33 +224,45 @@ in vec4 vColorBlendValues;
 
     vec2 GetBlendWeights(vec2 heightTex, vec2 heightScale, vec2 heightZero, vec4 vColorBlendValues)
     {
-        float blendFactor = vColorBlendValues.x;
-        float blendSoftness = vColorBlendValues.w;
+        // ENGINE LAW, transcribed from csgo_environment_blend_vulkan_60_ps.vcs
+        // static256.dyn4 (the byte-proven live combo of inferno draw groups
+        // eid4490/4598/eid5127). heightTex carries the RAW heightmap red channels;
+        // zero points and scales are applied here exactly as the engine does.
+        float bf = saturate((vColorBlendValues.x * 1.1) - 0.05);
+        float bf3 = saturate((vColorBlendValues.y * 1.1) - 0.05);
+        vec3 amounts = normalize(vec3(saturate((1.0 - bf) - bf3), bf, bf3));
 
-        // Weight calculations
-        float h1 = heightScale.x + blendSoftness;
-        float height1 = heightTex.x * h1;
+        float lod1 = textureQueryLod(g_tHeight1, vTexCoord.xy).x;
+        float lod2 = textureQueryLod(g_tHeight2, vTexCoord2.xy).x;
+        float fw1 = fwidth(heightTex.x * heightScale.x);
+        float fw2 = fwidth(heightTex.y * heightScale.y);
 
-        float h2 = heightScale.y + blendSoftness;
-        float h22 = heightTex.y * (heightScale.y - blendSoftness);
+        float softA = (((lod1 * lod1) * (0.0125 + fw1)) * 0.02) * g_flBlendSoftnessDistanceModifierStrength * amounts.x;
+        float softB = softA + ((((lod2 * lod2) * (0.0125 + fw2)) * 0.02) * g_flBlendSoftnessDistanceModifierStrength * amounts.y);
+        float softBase = max(vColorBlendValues.w, 1e-4) + softA; // the vertex stage already folded g_flBlendSoftness2 in and clamped
+        float softTotal = softBase + softB;
 
-        float blend1 = (-heightZero.x * h1 - ((1.0 - heightZero.y) * h2)) - blendSoftness;
-        float blend2 = (1.0 - heightZero.x) * h1 - ((-heightZero.y) * h2);
+        float zero1 = heightZero.x + (softA * 0.5);
+        float scale1 = heightScale.x + softBase;
+        float zero2 = heightZero.y + (softB * 0.5);
+        float scale2Full = heightScale.y + softTotal;
+        float scale2 = scale2Full - (softTotal * 2.0);
+        scale2 = (scale2 == 0.0) ? 1e-4 : scale2;
 
-        float h2x = h22 + mix(blend1, blend2, blendFactor);
+        // Facing mask: at every live material Softness2 = 0.0, so the saturate() is 1 and
+        // facing reduces to the blend amount. The general form mixes the geometric and
+        // normal-mapped layer-1 normal and is ported when a material authors Softness2 > 0.
+        float facing = bf;
 
-        vec2 weights = vec2(height1, h2x) - vec2(max(height1, h2x) - blendSoftness);
+        float offset = mix((((-zero1 * scale1) - ((1.0 - zero2) * scale2Full)) - softTotal), ((1.0 - zero1) * scale1) - ((-zero2) * scale2Full), facing);
+        float d1 = (heightTex.x - zero1) * scale1;
+        float d2 = ((heightTex.y - zero2) * scale2) + offset;
 
-        // Clamp negative values
-        weights = max(weights, vec2(0.0));
+        vec2 w = max((vec2(d1, d2) - vec2(max(d1, d2))) + vec2(softTotal), vec2(0.0));
+        float maskHeight = mix(0.5, heightTex.y, g_flMaskWithHeight2);
+        float w2 = saturate((w.y / (w.x + 1e-4 + w.y)) * maskHeight * 2.0);
 
-        // Bias towards material 1
-        weights.x += 0.001;
-
-        // Normalize
-        weights = weights / vec2(weights.x + weights.y);
-
-        return weights;
+        return vec2(1.0 - w2, w2);
     }
 #endif
 
@@ -390,7 +410,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     else
     {
         vec2 weights = GetBlendWeights(
-            vec2(baseHeight1, baseHeight2),
+            vec2(height.r, height2.r),
             vec2(g_flHeightMapScale1, g_flHeightMapScale2),
             vec2(g_flHeightMapZeroPoint1, g_flHeightMapZeroPoint2),
             vColorBlendValues
@@ -405,11 +425,19 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     height.r = baseHeight1;
     height2.r = baseHeight2;
 
-    color.rgb = CombineColor(color.rgb, color2.rgb, color2Overlay, weight2, g_flColorOverlay2, g_flColorReplace2);
+    color.rgb = CombineColor(color.rgb, color2.rgb, color2.rgb, weight2, g_flColorOverlay2, g_flColorReplace2); // engine overlays srgbEncode(final layer2) (dump _16054 == _13174's replace target), not the pre-vertex-color copy
     color.a = color.a * weightBase2 + color2.a * weight2;
-    height = height * weightBase2 + height2 * weight2;
-    normal = normal * weightBase2 + normal2 * weight2;
-    aoLevels = aoLevels * weightBase2 + g_vAmbientOcclusionLevels2.xyz * weight2;
+    // Engine per-property composites at the live default table (all Combine = 1, all
+    // Replace = 0): base * mix(1, upper, w) - AO and metalness Mod2x for metalness,
+    // roughness r1 * (1 + (r2 - r1) * 2w). Normal .rg stays a lerp here; the engine's
+    // normal law mixes decoded world normals and needs the decode restructured first.
+    height.a = height.a * mix(1.0, height2.a * 2.0, weight2);
+    height.r = height.r * weightBase2 + height2.r * weight2;
+    height.g = height.g * weightBase2 + height2.g * weight2;
+    height.b = height.b * weightBase2 + height2.b * weight2;
+    normal.rg = normal.rg * weightBase2 + normal2.rg * weight2;
+    normal.b = normal.b * (1.0 + ((normal2.b - normal.b) * 2.0 * weight2));
+    aoLevels = aoLevels * mix(vec3(1.0), g_vAmbientOcclusionLevels2.xyz, weight2);
 
     #if (F_ENABLE_LAYER_3 == 1)
         vec4 color3 = texture(g_tColor3, vTexCoord3.xy);

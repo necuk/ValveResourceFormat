@@ -68,7 +68,7 @@ uniform vec2 g_vTexCoordScale1 = vec2(1.0);
     uniform vec2 g_vTexCoordOffset2 = vec2(0.0);
     uniform vec2 g_vTexCoordScale2 = vec2(1.0);
 
-    uniform float g_flBlendSoftness2 = 0.01;
+    uniform float g_flBlendSoftness2 = 0.0; // engine feature default 0.0 (live cbuffer, 3 materials invariant)
 
     uniform int F_BLEND_BY_FACING_DIRECTION_2; // 0="None", 1="Geometric", 2="Normal Map"
     #define bGeoBlendByFacingDirection2 F_BLEND_BY_FACING_DIRECTION_2 > 0
