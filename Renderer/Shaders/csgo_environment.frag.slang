@@ -87,6 +87,11 @@ in vec4 vColorBlendValues;
     uniform float g_fTintMaskBrightness2 = 1.0;
     uniform float g_flNormalCombine2 = 1.0;
     uniform float g_flNormalReplace2 = 0.0;
+    uniform float g_flBevelSpread2 = 0.1;
+    uniform float g_flBevelSoftness2 = 0.1;
+    uniform float g_flBevelStrength2 = 0.0;
+    uniform float g_flBevelCurve2 = 0.0;
+    uniform vec2 g_vBevelLayerAmount2 = vec2(1.0, 1.0);
     uniform float g_fTintMaskContrast2 = 1.0;
     uniform int g_nVertexColorMode2 = 0;
     uniform vec3 g_vAmbientOcclusionLevels2 = vec3(0, 0.5, 1);
@@ -451,7 +456,50 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
         N1w = normalize(mix(mat.GeometricNormal, N1w, g_fTextureNormalContrast1));
         vec3 N2w = calculateWorldNormal(DecodeHemiOctahedronNormal(normal2.rg), mat.GeometricNormal, mat.Tangent, mat.Bitangent);
         N2w = normalize(mix(mat.GeometricNormal, N2w, g_fTextureNormalContrast2));
-        vec3 blendN = mix(N1w, normalize(mix(mat.GeometricNormal, (N1w + N2w) * 0.5, 2.0)), weight2 * g_flNormalCombine2);
+
+        vec3 N1composite = N1w;
+        if (g_flBevelStrength2 != 0.0 && (g_vBevelLayerAmount2.x != 0.0 || g_vBevelLayerAmount2.y != 0.0))
+        {
+            float rawH1 = height.r + g_flHeightMapZeroPoint1;
+            float rawH2 = height2.r + g_flHeightMapZeroPoint2;
+            float bbf = saturate((vColorBlendValues.x * 1.1) - 0.05);
+            float bbf3 = saturate((vColorBlendValues.y * 1.1) - 0.05);
+            vec3 bamounts = normalize(vec3(saturate((1.0 - bbf) - bbf3), bbf, bbf3));
+            float blod1 = textureQueryLod(g_tHeight1, vTexCoord.xy).x;
+            float blod2 = textureQueryLod(g_tHeight2, vTexCoord2.xy).x;
+            float bfw1 = fwidth(rawH1 * g_flHeightMapScale1);
+            float bfw2 = fwidth(rawH2 * g_flHeightMapScale2);
+            float bsoftA = (((blod1 * blod1) * (0.0125 + bfw1)) * 0.02) * g_flBlendSoftnessDistanceModifierStrength * bamounts.x;
+            float bsoftB = (((blod2 * blod2) * (0.0125 + bfw2)) * 0.02) * g_flBlendSoftnessDistanceModifierStrength * bamounts.y;
+            float bsoftBase = max(vColorBlendValues.w, 1e-4) + bsoftA;
+            float bsoftTotal = bsoftBase + bsoftB;
+            float bzero1 = g_flHeightMapZeroPoint1 + (bsoftA * 0.5);
+            float bscale1 = g_flHeightMapScale1 + bsoftBase;
+            float bzero2 = g_flHeightMapZeroPoint2 + (bsoftB * 0.5);
+            float bscale2Full = g_flHeightMapScale2 + bsoftTotal;
+            float bscale2 = bscale2Full - (bsoftTotal * 2.0);
+            bscale2 = (bscale2 == 0.0) ? 1e-4 : bscale2;
+            float boffset = mix((((-bzero1 * bscale1) - ((1.0 - bzero2) * bscale2Full)) - bsoftTotal), ((1.0 - bzero1) * bscale1) - ((-bzero2) * bscale2Full), bbf);
+            float bd1 = (rawH1 - bzero1) * bscale1;
+            float bd2 = ((rawH2 - bzero2) * (bscale2 - g_flBevelSoftness2)) + boffset + g_flBevelSpread2;
+            float bm = max(bd1, bd2) - bsoftTotal - g_flBevelSoftness2;
+            vec2 bband = max(vec2(bd1, bd2) - vec2(bm), vec2(0.0));
+            float bfrac = bband.y / (bband.x + 0.001 + bband.y);
+            float bcurve = max(0.2, g_flBevelCurve2 * 2.0);
+            float brising = pow(smoothstep(0.0, 0.5, bfrac), bcurve);
+            float bfalling = pow(smoothstep(1.0, 0.5, bfrac), bcurve);
+            vec3 bperturbed = vFragPosition + (mat.GeometricNormal * (((brising + 1.0) - bfalling) * g_flBevelStrength2)) * 100.0;
+            vec3 bgrad = cross(dFdyFine(bperturbed), dFdxFine(bperturbed));
+            if (length(bgrad) > 0.0)
+            {
+                float bwindow = saturate(bbf * 10.0) * saturate((1.0 - bbf) * 10.0);
+                float bweight = (((brising * bfalling) * smoothstep(0.0, g_flBevelSoftness2, bbf)) * bwindow) * mix(1.0, g_vBevelLayerAmount2.x, weight2) * mix(g_vBevelLayerAmount2.y, 1.0, weight2);
+                vec3 bgradN = normalize(mix(mat.GeometricNormal, normalize(bgrad), bweight));
+                N1composite = normalize(mix(mat.GeometricNormal, (N1w + bgradN) * 0.5, 2.0));
+            }
+        }
+
+        vec3 blendN = mix(N1composite, normalize(mix(mat.GeometricNormal, (N1composite + N2w) * 0.5, 2.0)), weight2 * g_flNormalCombine2);
         engineBlendWorldNormal = mix(blendN, N2w, weight2 * g_flNormalReplace2);
     }
     normal.b = normal.b * (1.0 + ((normal2.b - normal.b) * 2.0 * weight2));
