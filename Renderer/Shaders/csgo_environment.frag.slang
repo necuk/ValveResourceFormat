@@ -538,7 +538,25 @@ void main()
     ApplyAmbientOcclusion(lighting, mat);
 
     vec3 diffuseLighting = lighting.DiffuseDirect + lighting.DiffuseIndirect;
-    vec3 specularLighting = lighting.SpecularDirect + lighting.SpecularIndirect;
+
+    float flRoughAvg = dot(mat.Roughness.xy, vec2(0.5));
+    float flRoughSq = flRoughAvg * flRoughAvg;
+    float flNoV = max(0.0, dot(mat.AmbientNormal, mat.ViewDir));
+    vec4 vBrdfPoly = flRoughAvg * vec4(-1.0, -0.0275, -0.572, 0.022) + vec4(1.0, 0.0425, 1.04, -0.04);
+    float flA004 = min(vBrdfPoly.x * vBrdfPoly.x, exp2(-9.28 * flNoV)) * vBrdfPoly.x + vBrdfPoly.y;
+    vec2 vBrdfAB = vec2(-1.04, 1.04) * flA004 + vBrdfPoly.zw;
+    vec3 vEnvBrdf = mat.SpecularColor * vBrdfAB.x + vBrdfAB.y;
+
+    g_flEnvLodOverride = 5.0 * sqrt(flRoughAvg);
+    g_flEnvRoughnessSquaredOverride = flRoughSq;
+    vec3 vEnvSample = GetEnvironmentNoBRDF(mat, 1.0);
+    g_flEnvLodOverride = -1.0;
+    g_flEnvRoughnessSquaredOverride = -1.0;
+
+    vec3 vLightingSum = lighting.DiffuseDirect + lighting.DiffuseIndirect;
+    vec3 vLightingTint = normalize(vLightingSum + vec3(0.001)) * clamp(length(vLightingSum), 0.0, 1.75);
+    vec3 vIndirectBoost = vec3(1.0) + normalize(lighting.DiffuseIndirect + vec3(0.001)) * 0.5;
+    vec3 specularLighting = vEnvBrdf * vEnvSample * vLightingTint * vIndirectBoost * mat.SpecularAO;
 
     vec3 combinedLighting = mat.DiffuseColor * diffuseLighting + specularLighting;
 
