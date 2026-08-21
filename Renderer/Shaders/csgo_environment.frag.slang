@@ -23,6 +23,9 @@ in vec4 vBlendColorTint;
 
 out vec4 outputColor;
 
+uniform float g_flDebugBlendVis = 0;
+float g_flDebugWeight2Out = -1.0;
+
 // Material 1
 uniform sampler2D g_tColor1; // SrgbRead(true)
 uniform sampler2D g_tHeight1;
@@ -45,7 +48,7 @@ uniform int g_nVertexColorMode1 = 0; // 0=Masked by tint, 1=Unmasked, 2=Disabled
 uniform vec3 g_vAmbientOcclusionLevels1 = vec3(0, 0.5, 1);
 
 uniform float g_flHeightMapScale1 = 1.0;
-uniform float g_flHeightMapZeroPoint1 = 0.0; // engine default (live cbuffer, 3 materials invariant)
+uniform float g_flHeightMapZeroPoint1 = 0.5; // vfx golden default (m_flDefault)
 
 uniform mat4 g_mTextureColorAdjust1;
 uniform mat4 g_mTextureAdjust1;
@@ -86,8 +89,8 @@ in vec4 vColorBlendValues;
     uniform int g_nVertexColorMode2 = 0;
     uniform vec3 g_vAmbientOcclusionLevels2 = vec3(0, 0.5, 1);
 
-    uniform float g_flHeightMapScale2 = 0.5; // engine default (live cbuffer, 3 materials invariant)
-    uniform float g_flHeightMapZeroPoint2 = 0.0;
+    uniform float g_flHeightMapScale2 = 1.0; // vfx golden default (m_flDefault)
+    uniform float g_flHeightMapZeroPoint2 = 0.5;
 
     uniform mat4 g_mTextureColorAdjust2;
     uniform mat4 g_mTextureAdjust2;
@@ -151,7 +154,7 @@ in vec4 vColorBlendValues;
     // vColorBlendValues.w, so the fragment law below must NOT add it again.
     // Live cbuffer table: inferno draw groups eid4490/4598/5127 (receipt:
     // docs/sessions/2026-08-21_vrf_plates_residual_attack/blend_draw_state.json).
-    uniform float g_flBlendSoftnessDistanceModifierStrength = 0.0; // authored per material at every live draw (0.2/0.0/0.1); engine default unobserved, 0.0 keeps the growth term off for unauthored materials
+    uniform float g_flBlendSoftnessDistanceModifierStrength = 1.0; // authored per material at every live draw (0.2/0.0/0.1); engine default unobserved, 0.0 keeps the growth term off for unauthored materials
 
     // Height-band blend. Every layer above the first gets a single [0, 1] weight from a
     // height difference measured against the layers below it, which is carried upward.
@@ -420,6 +423,13 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
         weightBase2 = weights.x;
     }
 
+    g_flDebugWeight2Out = weight2;
+    if (g_flDebugBlendVis >= 10.0)
+    {
+        weight2 = saturate(g_flDebugBlendVis - 10.0);
+        weightBase2 = 1.0 - weight2;
+    }
+
     rawHeight = (rawHeight * weightBase2) + (height2.r * weight2);
 
     height.r = baseHeight1;
@@ -559,6 +569,14 @@ void main()
     vec3 vertexNormal = SwitchCentroidNormal(vNormalOut, vCentroidNormalOut);
 
     MaterialProperties_t mat = GetMaterial(vertexNormal);
+
+#if (GameVfx_csgo_environment_blend != 0)
+    if (g_flDebugBlendVis > 0.5 && g_flDebugBlendVis < 1.5)
+    {
+        outputColor = vec4(g_flDebugWeight2Out.xxx, 1.0);
+        return;
+    }
+#endif
 
     LightingTerms_t lighting = CalculateLighting(mat);
 
