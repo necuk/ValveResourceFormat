@@ -38,6 +38,11 @@ layout(std140, binding = 0) uniform ViewConstants
 
     vec4 g_vEnvWetness;
     vec4 g_vEnvWetnessRipple;
+
+    int g_nDebugFragCheckpoint;
+    int _viewPadding3;
+    int _viewPadding4;
+    int _viewPadding5;
 };
 
 bool blink()

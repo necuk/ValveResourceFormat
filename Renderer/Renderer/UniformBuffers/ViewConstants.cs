@@ -98,6 +98,13 @@ namespace ValveResourceFormat.Renderer.Buffers
         /// <summary>Puddle ripple direction in X, over 0 to 1 for a full turn.</summary>
         public Vector4 EnvWetnessRipple;
 
+#pragma warning disable CS1591
+        public int DebugFragCheckpoint;
+        public int _ViewPadding3;
+        public int _ViewPadding4;
+        public int _ViewPadding5;
+#pragma warning restore CS1591
+
         /// <summary>Initializes a new <see cref="ViewConstants"/> with identity matrices and default values.</summary>
         public ViewConstants()
         {

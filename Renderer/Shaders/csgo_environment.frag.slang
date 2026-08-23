@@ -25,6 +25,7 @@ out vec4 outputColor;
 
 uniform float g_flDebugBlendVis = 0;
 float g_flDebugWeight2Out = -1.0;
+vec3 g_vDebugCheckpoints[16] = vec3[16](vec3(0.0),vec3(0.0),vec3(0.0),vec3(0.0),vec3(0.0),vec3(0.0),vec3(0.0),vec3(0.0),vec3(0.0),vec3(0.0),vec3(0.0),vec3(0.0),vec3(0.0),vec3(0.0),vec3(0.0),vec3(0.0));
 
 // Material 1
 uniform sampler2D g_tColor1; // SrgbRead(true)
@@ -251,6 +252,8 @@ in vec4 vColorBlendValues;
         float softB = softA + ((((lod2 * lod2) * (0.0125 + fw2)) * 0.02) * g_flBlendSoftnessDistanceModifierStrength * amounts.y);
         float softBase = max(min(vColorBlendValues.w + flBlendSoftness, 1.0), 1e-4) + softA;
         float softTotal = softBase + softB;
+        g_vDebugCheckpoints[4] = vec3(softA);
+        g_vDebugCheckpoints[5] = vec3(softBase);
 
         float zero1 = heightZero.x + (softA * 0.5);
         float scale1 = heightScale.x + softBase;
@@ -271,6 +274,8 @@ in vec4 vColorBlendValues;
         vec2 w = max((vec2(d1, d2) - vec2(max(d1, d2))) + vec2(softTotal), vec2(0.0));
         float maskHeight = mix(0.5, heightTex.y, g_flMaskWithHeight2);
         float w2 = saturate((w.y / (w.x + 1e-4 + w.y)) * maskHeight * 2.0);
+        g_vDebugCheckpoints[6] = vec3(1.0 - w2);
+        g_vDebugCheckpoints[7] = vec3(w2);
 
         return vec2(1.0 - w2, w2);
     }
@@ -298,6 +303,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
 {
     MaterialProperties_t mat;
     InitProperties(mat, vertexNormals, vFragPosition, vTangentOut, vBitangentOut);
+    g_vDebugCheckpoints[3] = vec3(vColorBlendValues.w);
 
     // vTexCoord = Layer1 (xy) shared color overlay (zw)
     // vTexCoord2 = Layer2 (xy) UV2 (zw)
@@ -305,6 +311,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
 
     vec4 color = texture(g_tColor1, vTexCoord.xy);
     vec4 height = texture(g_tHeight1, vTexCoord.xy);
+    g_vDebugCheckpoints[1] = vec3(height.r);
 
     // Where the water line is judged against.
     float rawHeight = height.r;
@@ -324,6 +331,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
             + ((SafePow(vec3(1.0) + min(vec3(0.0), overlay), vec3(g_flOverlayDarknessContrast)) - vec3(1.0)) * g_flOverlayDarknessContrast)) + vec3(1.0);
         overlayFactor = max(vec3(0.0), _15235);
     #endif
+    g_vDebugCheckpoints[11] = overlayFactor;
 
     vec3 tintColorNorm = normalize(max(vTintColor_ModelAmount.xyz, vec3(0.001)));
     float tintColorNormLuma = GetLuma(tintColorNorm);
@@ -332,6 +340,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     vec4 colorColorCorrectedTinted = color * g_mTextureColorAdjust1;
 
     vec3 colorTintedMaybeColorCorrected = mix(colorMaybeColorCorrected.rgb, colorColorCorrectedTinted.rgb, tintMask1);
+    g_vDebugCheckpoints[9] = colorTintedMaybeColorCorrected;
 
     float tintAdjustedLuma = GetLuma(colorTintedMaybeColorCorrected);
 
@@ -358,6 +367,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     vec4 color2 = texture(g_tColor2, vTexCoord2.xy);
     vec4 height2 = texture(g_tHeight2, vTexCoord2.xy);
     vec4 normal2 = texture(g_tNormal2, vTexCoord2.xy);
+    g_vDebugCheckpoints[2] = vec3(height2.r);
     #if (F_DETAIL_NORMAL == 1)
         vec2 detailNormal2 = texture(g_tNormalDetail2, vDetailTexCoords).rg;
     #endif
@@ -370,6 +380,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     vec4 color2ColorCorrectedTinted = color2 * g_mTextureColorAdjust2;
 
     vec3 color2TintedMaybeColorCorrected = mix(color2MaybeColorCorrected.rgb, color2ColorCorrectedTinted.rgb, tintMask2);
+    g_vDebugCheckpoints[10] = color2TintedMaybeColorCorrected;
 
     float tintAdjusted2Luma = GetLuma(color2TintedMaybeColorCorrected);
 
@@ -469,6 +480,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
         float pw = pzone.y / ((pzone.x + 1e-4) + pzone.y);
         float wBand = saturate(pw * mix(0.5, height2.r, g_flMaskWithHeight2) * 2.0);
         float hMask = saturate((pbd2 + bzero2) - pbd1);
+        g_vDebugCheckpoints[8] = vec3(wBand);
         if (g_flBevelStrength2 != 0.0 && (g_vBevelLayerAmount2.x != 0.0 || g_vBevelLayerAmount2.y != 0.0))
         {
             float bd1 = (height.r - bzero1) * (bscale1 + g_flBevelSoftness2);
@@ -581,6 +593,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
 #endif
 
     mat.Albedo = color.rgb;
+    g_vDebugCheckpoints[12] = mat.Albedo;
     mat.AmbientOcclusion = color.a;
 
     // Alpha test
@@ -612,6 +625,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     #if (GameVfx_csgo_environment_blend != 0)
         mat.Normal = engineBlendWorldNormal;
     #endif
+    g_vDebugCheckpoints[13] = mat.Normal * 0.5 + vec3(0.5);
 
     mat.Height = height.r;
     mat.Metalness = height.a;
@@ -648,6 +662,7 @@ void main()
 #endif
 
     LightingTerms_t lighting = CalculateLighting(mat);
+    g_vDebugCheckpoints[14] = lighting.DiffuseIndirect;
 
     // Combining pass
     ApplyAmbientOcclusion(lighting, mat);
@@ -674,6 +689,7 @@ void main()
     vec3 specularLighting = vEnvBrdf * vEnvSample * vLightingTint * vIndirectBoost * mat.SpecularAO;
 
     vec3 combinedLighting = mat.DiffuseColor * diffuseLighting + specularLighting;
+    g_vDebugCheckpoints[15] = combinedLighting;
 
     ApplyFog(combinedLighting, mat.PositionWS);
 
@@ -705,4 +721,9 @@ void main()
         outputColor.rgb = vColorBlendValues.rgb;
     }
 #endif
+
+    if (g_nDebugFragCheckpoint != 0)
+    {
+        outputColor.rgb = g_vDebugCheckpoints[g_nDebugFragCheckpoint];
+    }
 }
