@@ -686,7 +686,7 @@ void main()
     vec3 vLightingSum = lighting.DiffuseDirect + lighting.DiffuseIndirect;
     vec3 vLightingTint = normalize(vLightingSum + vec3(0.001)) * clamp(length(vLightingSum), 0.0, 1.75);
     vec3 vIndirectBoost = vec3(1.0) + normalize(lighting.DiffuseIndirect + vec3(0.001)) * 0.5;
-    vec3 specularLighting = vEnvBrdf * vEnvSample * vLightingTint * vIndirectBoost * mat.SpecularAO;
+    vec3 specularLighting = lighting.SpecularDirect + vEnvBrdf * vEnvSample * vLightingTint * vIndirectBoost * mat.SpecularAO;
 
     vec3 combinedLighting = mat.DiffuseColor * diffuseLighting + specularLighting;
     g_vDebugCheckpoints[15] = combinedLighting;
