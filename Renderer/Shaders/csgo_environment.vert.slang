@@ -257,16 +257,8 @@ void main()
             vColorBlendValues.x *= flDirectionMultiplier;
         }
 
-        float flSoftness = g_flBlendSoftness2;
 
         #if (F_ENABLE_LAYER_3 == 1)
-            if (vColorBlendValues.x < 0.001)
-            {
-                flSoftness = g_flBlendSoftness3;
-            }
-
-            flSoftness = mix(flSoftness, g_flBlendSoftness3, vColorBlendValues.y);
-
             if (bGeoBlendByFacingDirection3 && bVertexBlendByFacingDirection3)
             {
                 float flDirectionMultiplier = fma(dot(g_vFacingDirectionNormalizedSafe3.xyz, vNormalOut.xyz), 0.5, 0.5);
@@ -276,7 +268,6 @@ void main()
             }
         #endif
 
-        vColorBlendValues.a = clamp(vColorBlendValues.a + flSoftness, 0.001, 1.0);
     #else
         vColorBlendValues.a = clamp(vColorBlendValues.a, 0.001, 1.0);
     #endif

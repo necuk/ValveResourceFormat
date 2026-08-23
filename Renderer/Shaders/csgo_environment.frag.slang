@@ -85,12 +85,12 @@ in vec4 vColorBlendValues;
     uniform float g_fTextureRoughnessBrightness2 = 1.0;
     uniform float g_fTextureRoughnessContrast2 = 1.0;
     uniform float g_fTintMaskBrightness2 = 1.0;
-    uniform float g_flNormalCombine2 = 1.0;
-    uniform float g_flNormalReplace2 = 0.0;
+    uniform float g_flNormalCombine2 = 0.0;
+    uniform float g_flNormalReplace2 = 1.0;
     uniform float g_flBevelSpread2 = 0.1;
     uniform float g_flBevelSoftness2 = 0.1;
     uniform float g_flBevelStrength2 = 0.0;
-    uniform float g_flBevelCurve2 = 0.0;
+    uniform float g_flBevelCurve2 = 1.0;
     uniform vec2 g_vBevelLayerAmount2 = vec2(1.0, 1.0);
     uniform float g_fTintMaskContrast2 = 1.0;
     uniform int g_nVertexColorMode2 = 0;
@@ -232,7 +232,7 @@ in vec4 vColorBlendValues;
         return o;
     }
 
-    vec2 GetBlendWeights(vec2 heightTex, vec2 heightScale, vec2 heightZero, vec4 vColorBlendValues)
+    vec2 GetBlendWeights(vec2 heightTex, vec2 heightScale, vec2 heightZero, vec4 vColorBlendValues, float flBlendSoftness)
     {
         // ENGINE LAW, transcribed from csgo_environment_blend_vulkan_60_ps.vcs
         // static256.dyn4 (the byte-proven live combo of inferno draw groups
@@ -249,7 +249,7 @@ in vec4 vColorBlendValues;
 
         float softA = (((lod1 * lod1) * (0.0125 + fw1)) * 0.02) * g_flBlendSoftnessDistanceModifierStrength * amounts.x;
         float softB = softA + ((((lod2 * lod2) * (0.0125 + fw2)) * 0.02) * g_flBlendSoftnessDistanceModifierStrength * amounts.y);
-        float softBase = max(vColorBlendValues.w, 1e-4) + softA; // the vertex stage already folded g_flBlendSoftness2 in and clamped
+        float softBase = max(min(vColorBlendValues.w + flBlendSoftness, 1.0), 1e-4) + softA;
         float softTotal = softBase + softB;
 
         float zero1 = heightZero.x + (softA * 0.5);
@@ -345,13 +345,6 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     color.rgb = tintResult;
 
     #if (GameVfx_csgo_environment_blend != 0)
-        #if (F_SHARED_COLOR_OVERLAY == 1)
-            // 0=Both, 1=Layer 1
-            const bool g_bColorOverlayLayer1 = g_nColorOverlayMode == 0 || g_nColorOverlayMode == 1;
-            const bool g_bColorOverlayMaskLayer1 = g_nColorOverlayTintMask == 0 || g_nColorOverlayTintMask == 1;
-            color.rgb *= mix(vec3(1.0), overlayFactor, vec3((g_bColorOverlayMaskLayer1 ? tintMask1 : 1.0) * float(g_bColorOverlayLayer1)));
-        #endif
-
         float flVertexColorMask = float(g_nVertexColorMode1 != 2) * mix(height.g, 1.0, g_nVertexColorMode1 == 0);
         color.rgb *= mix(vec3(1.0), vVertexColor_Alpha.rgb, flVertexColorMask);
     #else
@@ -387,13 +380,6 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
 
     color2.rgb = tintResult2;
 
-    #if (F_SHARED_COLOR_OVERLAY == 1)
-        // 0=Both, 2=Layer 2
-        const bool g_bColorOverlayLayer2 = g_nColorOverlayMode == 0 || g_nColorOverlayMode == 2;
-        const bool g_bColorOverlayMaskLayer2 = g_nColorOverlayTintMask == 0 || g_nColorOverlayTintMask == 2;
-        color2.rgb *= mix(vec3(1.0), overlayFactor, vec3((g_bColorOverlayMaskLayer2 ? tintMask2 : 1.0) * float(g_bColorOverlayLayer2)));
-    #endif
-
     float flVertexColorMask2 = float(g_nVertexColorMode2 != 2) * mix(height2.g, 1.0, g_nVertexColorMode2 == 0);
     vec3 color2Overlay = color2.rgb;
     color2.rgb *= mix(vec3(1.0), vVertexColor_Alpha.rgb, flVertexColorMask2);
@@ -422,7 +408,8 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
             vec2(height.r, height2.r),
             vec2(g_flHeightMapScale1, g_flHeightMapScale2),
             vec2(g_flHeightMapZeroPoint1, g_flHeightMapZeroPoint2),
-            vColorBlendValues
+            vColorBlendValues,
+            g_flBlendSoftness2
         );
 
         weight2 = weights.y;
@@ -458,30 +445,34 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
         N2w = normalize(mix(mat.GeometricNormal, N2w, g_fTextureNormalContrast2));
 
         vec3 N1composite = N1w;
+        float bbf = saturate((vColorBlendValues.x * 1.1) - 0.05);
+        float bbf3 = saturate((vColorBlendValues.y * 1.1) - 0.05);
+        vec3 bamounts = normalize(vec3(saturate((1.0 - bbf) - bbf3), bbf, bbf3));
+        float blod1 = textureQueryLod(g_tHeight1, vTexCoord.xy).x;
+        float blod2 = textureQueryLod(g_tHeight2, vTexCoord2.xy).x;
+        float bfw1 = fwidth(height.r * g_flHeightMapScale1);
+        float bfw2 = fwidth(height2.r * g_flHeightMapScale2);
+        float bsoftA = (((blod1 * blod1) * (0.0125 + bfw1)) * 0.02) * g_flBlendSoftnessDistanceModifierStrength * bamounts.x;
+        float bsoftB = (((blod2 * blod2) * (0.0125 + bfw2)) * 0.02) * g_flBlendSoftnessDistanceModifierStrength * bamounts.y;
+        float bsoftBase = max(min(vColorBlendValues.w + g_flBlendSoftness2, 1.0), 1e-4) + bsoftA;
+        float bsoftTotal = bsoftBase + bsoftB;
+        float bzero1 = g_flHeightMapZeroPoint1 + (bsoftA * 0.5);
+        float bscale1 = g_flHeightMapScale1 + bsoftBase;
+        float bzero2 = g_flHeightMapZeroPoint2 + (bsoftB * 0.5);
+        float bscale2Full = g_flHeightMapScale2 + bsoftTotal;
+        float bscale2 = bscale2Full - (bsoftTotal * 2.0);
+        bscale2 = (bscale2 == 0.0) ? 1e-4 : bscale2;
+        float boffset = mix((((-bzero1 * bscale1) - ((1.0 - bzero2) * bscale2Full)) - bsoftTotal), ((1.0 - bzero1) * bscale1) - ((-bzero2) * bscale2Full), bbf);
+        float pbd1 = (height.r - bzero1) * bscale1;
+        float pbd2 = ((height2.r - bzero2) * bscale2) + boffset;
+        vec2 pzone = max((vec2(pbd1, pbd2) - vec2(max(pbd1, pbd2))) + vec2(bsoftTotal), vec2(0.0));
+        float pw = pzone.y / ((pzone.x + 1e-4) + pzone.y);
+        float wBand = saturate(pw * mix(0.5, height2.r, g_flMaskWithHeight2) * 2.0);
+        float hMask = saturate((pbd2 + bzero2) - pbd1);
         if (g_flBevelStrength2 != 0.0 && (g_vBevelLayerAmount2.x != 0.0 || g_vBevelLayerAmount2.y != 0.0))
         {
-            float rawH1 = height.r + g_flHeightMapZeroPoint1;
-            float rawH2 = height2.r + g_flHeightMapZeroPoint2;
-            float bbf = saturate((vColorBlendValues.x * 1.1) - 0.05);
-            float bbf3 = saturate((vColorBlendValues.y * 1.1) - 0.05);
-            vec3 bamounts = normalize(vec3(saturate((1.0 - bbf) - bbf3), bbf, bbf3));
-            float blod1 = textureQueryLod(g_tHeight1, vTexCoord.xy).x;
-            float blod2 = textureQueryLod(g_tHeight2, vTexCoord2.xy).x;
-            float bfw1 = fwidth(rawH1 * g_flHeightMapScale1);
-            float bfw2 = fwidth(rawH2 * g_flHeightMapScale2);
-            float bsoftA = (((blod1 * blod1) * (0.0125 + bfw1)) * 0.02) * g_flBlendSoftnessDistanceModifierStrength * bamounts.x;
-            float bsoftB = (((blod2 * blod2) * (0.0125 + bfw2)) * 0.02) * g_flBlendSoftnessDistanceModifierStrength * bamounts.y;
-            float bsoftBase = max(vColorBlendValues.w, 1e-4) + bsoftA;
-            float bsoftTotal = bsoftBase + bsoftB;
-            float bzero1 = g_flHeightMapZeroPoint1 + (bsoftA * 0.5);
-            float bscale1 = g_flHeightMapScale1 + bsoftBase;
-            float bzero2 = g_flHeightMapZeroPoint2 + (bsoftB * 0.5);
-            float bscale2Full = g_flHeightMapScale2 + bsoftTotal;
-            float bscale2 = bscale2Full - (bsoftTotal * 2.0);
-            bscale2 = (bscale2 == 0.0) ? 1e-4 : bscale2;
-            float boffset = mix((((-bzero1 * bscale1) - ((1.0 - bzero2) * bscale2Full)) - bsoftTotal), ((1.0 - bzero1) * bscale1) - ((-bzero2) * bscale2Full), bbf);
-            float bd1 = (rawH1 - bzero1) * bscale1;
-            float bd2 = ((rawH2 - bzero2) * (bscale2 - g_flBevelSoftness2)) + boffset + g_flBevelSpread2;
+            float bd1 = (height.r - bzero1) * (bscale1 + g_flBevelSoftness2);
+            float bd2 = ((height2.r - bzero2) * (bscale2 - g_flBevelSoftness2)) + boffset + g_flBevelSpread2;
             float bm = max(bd1, bd2) - bsoftTotal - g_flBevelSoftness2;
             vec2 bband = max(vec2(bd1, bd2) - vec2(bm), vec2(0.0));
             float bfrac = bband.y / (bband.x + 0.001 + bband.y);
@@ -499,8 +490,27 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
             }
         }
 
-        vec3 blendN = mix(N1composite, normalize(mix(mat.GeometricNormal, (N1composite + N2w) * 0.5, 2.0)), weight2 * g_flNormalCombine2);
-        engineBlendWorldNormal = mix(blendN, N2w, weight2 * g_flNormalReplace2);
+        vec3 blendN = mix(N1composite, normalize(mix(mat.GeometricNormal, (N1composite + N2w) * 0.5, 2.0)), wBand * g_flNormalCombine2);
+        engineBlendWorldNormal = mix(blendN, N2w, (wBand * hMask) * g_flNormalReplace2);
+
+        #if (F_SHARED_COLOR_OVERLAY == 1)
+            const bool g_bColorOverlayLayer1 = (g_nColorOverlayMode == 0) || (g_nColorOverlayMode == 1);
+            const bool g_bColorOverlayLayer2 = (g_nColorOverlayMode == 0) || (g_nColorOverlayMode == 2);
+            const bool g_bColorOverlayMaskLayer1 = (g_nColorOverlayTintMask == 0) || (g_nColorOverlayTintMask == 1);
+            const bool g_bColorOverlayMaskLayer2 = (g_nColorOverlayTintMask == 0) || (g_nColorOverlayTintMask == 2);
+
+            float overlayAmount = ((float(g_bColorOverlayLayer1) * (g_bColorOverlayMaskLayer1 ? tintMask1 : 1.0) * (1.0 - wBand)) +
+                                  (float(g_bColorOverlayLayer2) * (g_bColorOverlayMaskLayer2 ? tintMask2 : 1.0) * wBand));
+
+            if (overlayAmount > 0.0)
+            {
+                vec2 overlayUV = (g_nColorOverlayUVSet == 0) ? vTexCoord.zw : (g_nColorOverlayUVSet == 1) ? vTexCoord.xy : vTexCoord2.zw;
+                vec3 overlay = texture(g_tSharedColorOverlay, overlayUV).rgb * 2.0 - 1.0;
+                vec3 overlayAdjusted = max(vec3(0.0), ((vec3(1.0) - SafePow(vec3(1.0) - max(vec3(0.0), overlay), vec3(g_flOverlayBrightnessContrast))) * g_flOverlayBrightnessContrast) +
+                    ((SafePow(vec3(1.0) + min(vec3(0.0), overlay), vec3(g_flOverlayDarknessContrast)) - vec3(1.0)) * g_flOverlayDarknessContrast) + vec3(1.0));
+                color.rgb = color.rgb * mix(vec3(1.0), overlayAdjusted, vec3(overlayAmount));
+            }
+        #endif
     }
     normal.b = normal.b * (1.0 + ((normal2.b - normal.b) * 2.0 * weight2));
     aoLevels = aoLevels * mix(vec3(1.0), g_vAmbientOcclusionLevels2.xyz, weight2);
@@ -528,13 +538,6 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
 
         color3.rgb = tintResult3;
 
-        #if (F_SHARED_COLOR_OVERLAY == 1)
-            // 0=Both, 3=Layer 3
-            const bool g_bColorOverlayLayer3 = g_nColorOverlayMode == 0 || g_nColorOverlayMode == 3;
-            const bool g_bColorOverlayMaskLayer3 = g_nColorOverlayTintMask == 0 || g_nColorOverlayTintMask == 3;
-            color3.rgb *= mix(vec3(1.0), overlayFactor, vec3((g_bColorOverlayMaskLayer3 ? tintMask3 : 1.0) * float(g_bColorOverlayLayer3)));
-        #endif
-
         float flVertexColorMask3 = float(g_nVertexColorMode3 != 2) * mix(height3.g, 1.0, g_nVertexColorMode3 == 0);
         vec3 color3Overlay = color3.rgb;
         color3.rgb *= mix(vec3(1.0), vVertexColor_Alpha.rgb, flVertexColorMask3);
@@ -556,7 +559,8 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
                 vec2(max(height.r, height2.r), baseHeight3),
                 vec2(max(g_flHeightMapScale1, g_flHeightMapScale2), g_flHeightMapScale3),
                 vec2(max(g_flHeightMapZeroPoint1, g_flHeightMapZeroPoint2), g_flHeightMapZeroPoint3),
-                vec4(vColorBlendValues.y, 0.0, 0.0, vColorBlendValues.w)
+                vec4(vColorBlendValues.y, 0.0, 0.0, vColorBlendValues.w),
+                g_flBlendSoftness3
             );
 
             weight3 = weights3.y;
