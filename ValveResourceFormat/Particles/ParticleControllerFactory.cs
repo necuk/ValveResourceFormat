@@ -91,6 +91,7 @@ namespace ValveResourceFormat.Particles
                 ["C_INIT_RemapParticleCountToScalar"] = initializerInfo => new Initializers.RemapParticleCountToScalar(initializerInfo),
                 ["C_INIT_RingWave"] = initializerInfo => new RingWave(initializerInfo),
                 ["C_INIT_VelocityFromCP"] = initializerInfo => new VelocityFromCP(initializerInfo),
+                ["C_INIT_VelocityFromNormal"] = initializerInfo => new VelocityFromNormal(initializerInfo),
                 ["C_INIT_InheritVelocity"] = initializerInfo => new InheritVelocity(initializerInfo),
                 ["C_INIT_VelocityRadialRandom"] = initializerInfo => new VelocityRadialRandom(initializerInfo),
                 ["C_INIT_VelocityRandom"] = initializerInfo => new VelocityRandom(initializerInfo),
