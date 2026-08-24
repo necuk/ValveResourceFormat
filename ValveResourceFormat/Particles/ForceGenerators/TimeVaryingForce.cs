@@ -1,0 +1,36 @@
+namespace ValveResourceFormat.Particles.ForceGenerators;
+
+/// <summary>
+/// Applies a force that transitions from a starting vector to an ending vector over a window of the
+/// particle's own age, holding the endpoint values outside that window.
+/// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_TimeVaryingForce">C_OP_TimeVaryingForce</seealso>
+class TimeVaryingForce : ParticleFunctionForceGenerator
+{
+    private readonly float startLerpTime;
+    private readonly float endLerpTime = 10f;
+    private readonly Vector3 startingForce;
+    private readonly Vector3 endingForce;
+
+    public TimeVaryingForce(ParticleDefinitionParser parse) : base(parse)
+    {
+        startLerpTime = parse.Float("m_flStartLerpTime", startLerpTime);
+        endLerpTime = parse.Float("m_flEndLerpTime", endLerpTime);
+        startingForce = parse.Vector3("m_StartingForce", startingForce);
+        endingForce = parse.Vector3("m_EndingForce", endingForce);
+    }
+
+    public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
+    {
+        var start = startingForce * strength;
+        var end = endingForce * strength;
+        var scale = 1f / (endLerpTime - startLerpTime);
+
+        foreach (ref var particle in particles.Current)
+        {
+            var fraction = MathUtils.Saturate((particle.Age - startLerpTime) * scale);
+
+            particle.ForceAccumulator += Vector3.Lerp(start, end, fraction);
+        }
+    }
+}
