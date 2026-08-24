@@ -150,6 +150,7 @@ namespace ValveResourceFormat.Particles
                 ["C_OP_PercentageBetweenTransformsVector"] = operatorInfo => new PercentageBetweenTransformsVector(operatorInfo),
                 ["C_OP_PlaneCull"] = operatorInfo => new PlaneCull(operatorInfo),
                 ["C_OP_PointVectorAtNextParticle"] = operatorInfo => new PointVectorAtNextParticle(operatorInfo),
+                ["C_OP_RadiusDecay"] = operatorInfo => new RadiusDecay(operatorInfo),
                 ["C_OP_RestartAfterDuration"] = operatorInfo => new RestartAfterDuration(operatorInfo),
                 ["C_OP_PositionLock"] = operatorInfo => new PositionLock(operatorInfo),
                 ["C_OP_QuantizeFloat"] = operatorInfo => new QuantizeFloat(operatorInfo),
