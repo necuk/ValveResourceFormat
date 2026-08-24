@@ -207,6 +207,7 @@ namespace ValveResourceFormat.Particles
             = new()
             {
                 ["C_OP_ConstrainDistance"] = constraintInfo => new ConstrainDistance(constraintInfo),
+                ["C_OP_CollideWithSelf"] = constraintInfo => new CollideWithSelf(constraintInfo),
                 ["C_OP_RopeSpringConstraint"] = constraintInfo => new RopeSpringConstraint(constraintInfo),
             };
 
