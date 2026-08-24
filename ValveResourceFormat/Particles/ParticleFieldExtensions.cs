@@ -15,6 +15,17 @@ namespace ValveResourceFormat.Particles
             };
         }
 
+        /// <summary>
+        /// Whether <paramref name="field"/> holds a fraction, so a value written to it is clamped to
+        /// the unit range.
+        /// </summary>
+        public static bool IsFraction(this ParticleField field)
+            => field is ParticleField.Color
+                or ParticleField.Alpha
+                or ParticleField.AlphaAlternate
+                or ParticleField.GlowRgb
+                or ParticleField.GlowAlpha;
+
         // Extra utility for when one operator can set either scalars or vectors
         public static string? FieldType(this ParticleField field)
         {
