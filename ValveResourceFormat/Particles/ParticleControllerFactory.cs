@@ -145,6 +145,7 @@ namespace ValveResourceFormat.Particles
                 ["C_OP_OscillateScalarSimple"] = operatorInfo => new OscillateScalarSimple(operatorInfo),
                 ["C_OP_OscillateVector"] = operatorInfo => new OscillateVector(operatorInfo),
                 ["C_OP_OscillateVectorSimple"] = operatorInfo => new OscillateVectorSimple(operatorInfo),
+                ["C_OP_OrientTo2dDirection"] = operatorInfo => new OrientTo2dDirection(operatorInfo),
                 ["C_OP_PercentageBetweenTransformLerpCPs"] = operatorInfo => new PercentageBetweenTransformLerpCPs(operatorInfo),
                 ["C_OP_PercentageBetweenTransforms"] = operatorInfo => new PercentageBetweenTransforms(operatorInfo),
                 ["C_OP_PercentageBetweenTransformsVector"] = operatorInfo => new PercentageBetweenTransformsVector(operatorInfo),
