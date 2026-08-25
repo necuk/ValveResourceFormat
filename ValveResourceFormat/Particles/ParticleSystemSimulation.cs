@@ -336,6 +336,8 @@ namespace ValveResourceFormat.Particles
             // EndPrewarm puts it back and these leave no trace once the real simulation starts.
             var scope = new PrewarmScope(particlesEmitted, systemState.ParticleCount);
 
+            BeginInitializerBatch();
+
             for (var i = 0; i < count; i++)
             {
                 EmitParticle(0f);

@@ -8,16 +8,14 @@ namespace ValveResourceFormat.Particles.Initializers
     /// The collection-scoped counterpart of <see cref="InitFloat"/>. It carries neither a set method
     /// nor an input strength, so the value always replaces the attribute, and an angle output is
     /// stored as authored rather than converted from degrees.
-    ///
-    /// <para>The engine reads the input once for a whole batch of new particles. This reads it once
-    /// per particle instead, which differs only for an input that does not hold still within a
-    /// frame, such as a randomised one.</para>
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_InitFloatCollection">C_INIT_InitFloatCollection</seealso>
     class InitFloatCollection : ParticleFunctionInitializer
     {
         private readonly ParticleField outputField = ParticleField.Radius;
         private readonly INumberProvider inputValue = new LiteralNumberProvider(0);
+        private float batchValue;
+        private bool batchValueResolved;
 
         public InitFloatCollection(ParticleDefinitionParser parse) : base(parse)
         {
@@ -27,9 +25,20 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(outputField);
 
+        public override void BeginInitializeBatch()
+        {
+            batchValueResolved = false;
+        }
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            particle.SetScalar(outputField, inputValue.NextNumber(particleSystemState));
+            if (!batchValueResolved)
+            {
+                batchValue = inputValue.NextNumber(particleSystemState);
+                batchValueResolved = true;
+            }
+
+            particle.SetScalar(outputField, batchValue);
 
             return particle;
         }
