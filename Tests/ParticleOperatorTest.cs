@@ -82,6 +82,30 @@ public class ParticleOperatorTest
     }
 
     [Test]
+    public async Task DifferencePreviousParticleTreatsTheEngineSentinelAsNoPreviousParticle()
+    {
+        var data = FunctionData();
+        data["m_nFieldInput"] = new KVObject((int)ParticleField.Position);
+        data["m_nFieldOutput"] = new KVObject((int)ParticleField.Radius);
+        data["m_flInputMin"] = new KVObject(0f);
+        data["m_flInputMax"] = new KVObject(128f);
+        data["m_flOutputMin"] = new KVObject(0f);
+        data["m_flOutputMax"] = new KVObject(1f);
+        var sentinel = new Vector3(float.MaxValue);
+        var particles = Collection(
+            new Particle { Position = sentinel, Radius = 2f },
+            new Particle { Position = Vector3.Zero, Radius = 3f },
+            new Particle { Position = Vector3.UnitX, Radius = 4f });
+
+        new DifferencePreviousParticle(Parser(data)).Operate(
+            particles, 0.1f, new ParticleSystemState(), 1f);
+
+        await Assert.That(particles.Current[0].Radius).IsEqualTo(2f);
+        await Assert.That(particles.Current[1].Radius).IsEqualTo(3f);
+        await Assert.That(particles.Current[2].Radius).IsEqualTo(1f / 128f);
+    }
+
+    [Test]
     public async Task DistanceBetweenVecsUsesUnitSpanForEqualBoundsThenAppliesStrength()
     {
         var data = FunctionData();

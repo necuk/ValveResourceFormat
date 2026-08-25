@@ -44,8 +44,7 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            var hasPrevious = false;
-            var previousValue = Vector3.Zero;
+            var previousValue = new Vector3(float.MaxValue);
             var previousIndex = 0;
 
             for (var i = 0; i < particles.Count; i++)
@@ -53,7 +52,9 @@ namespace ValveResourceFormat.Particles.Operators
                 ref var particle = ref particles.Current[i];
                 var value = particle.GetVector(fieldInput);
 
-                if (hasPrevious)
+                if (previousValue.X != float.MaxValue
+                    || previousValue.Y != float.MaxValue
+                    || previousValue.Z != float.MaxValue)
                 {
                     var distance = Vector3.Distance(previousValue, value);
 
@@ -73,7 +74,6 @@ namespace ValveResourceFormat.Particles.Operators
                     }
                 }
 
-                hasPrevious = true;
                 previousValue = value;
                 previousIndex = i;
             }
