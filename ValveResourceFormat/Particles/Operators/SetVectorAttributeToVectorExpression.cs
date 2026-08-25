@@ -40,7 +40,7 @@ namespace ValveResourceFormat.Particles.Operators
 
                 output = particle.ModifyVectorBySetMethod(particles, outputField, output, setMethod);
 
-                if (outputField.IsFraction())
+                if (outputField.IsNormalizedField())
                 {
                     output = Vector3.Clamp(output, Vector3.Zero, Vector3.One);
                 }
