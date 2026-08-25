@@ -15,7 +15,7 @@ namespace ValveResourceFormat.Particles.Utils
         public float Evaluate(float x)
         {
             // Coefficients are relative to the segment start
-            var t = x - Start.X;
+            var t = (x - Start.X) / (End.X - Start.X);
             return a + t * (b + t * (c + t * d));
         }
 
@@ -28,23 +28,19 @@ namespace ValveResourceFormat.Particles.Utils
     {
         public static SplineCurve GetCoefficients(CurvePoint p0, CurvePoint p1)
         {
-            // Here we have to find the coefficients to use to interpolate between p0 and p1.
+            var dx = p1.X - p0.X;
+            var dy = p1.Y - p0.Y;
+            var slope0 = p0.SlopeOutgoing;
+            var slope1 = p1.SlopeIncoming;
 
-            // I have no clue what they do to interpolate just from two linear values.
-
-            // There's no way they fit curves in real time. We're working with the same data that the game does.
-            // So they have to be doing *something* that lets them interpolate between two
-            // curve points with only tangents while still passing through both points.
-
-            // TEMP SOLUTION (sucks): Linear interpolate between points
             return new SplineCurve
             {
                 Start = p0.Pos,
                 End = p1.Pos,
                 a = p0.Y,
-                b = (p1.Y - p0.Y) / (p1.X - p0.X),
-                c = 0,
-                d = 0,
+                b = dx * slope0,
+                c = ((-slope1 - (slope0 + slope0)) * dx) + (dy * 3f),
+                d = ((slope1 + slope0) * dx) - (dy + dy),
             };
         }
     }
@@ -129,12 +125,114 @@ namespace ValveResourceFormat.Particles.Utils
                 };
             }
 
+            ResolveSlopes(CurvePoints);
+
             curveSegments = new SplineCurve[Math.Max(0, pointCount - 1)];
 
             for (var i = 0; i < CurvePoints.Length - 1; i++)
             {
                 curveSegments[i] = CurveFitting.GetCoefficients(CurvePoints[i], CurvePoints[i + 1]);
             }
+        }
+
+        internal static void ResolveSlopes(CurvePoint[] points)
+        {
+            if (points.Length == 0)
+            {
+                return;
+            }
+
+            var minX = points[0].X + 0.0001f;
+            for (var i = 1; i < points.Length; i++)
+            {
+                points[i].X = MathF.Max(points[i].X, minX);
+                minX = points[i].X + 0.0001f;
+            }
+
+            for (var i = 0; i < points.Length; i++)
+            {
+                var point = points[i];
+                var previous = i > 0 ? points[i - 1] : null;
+                var next = i < points.Length - 1 ? points[i + 1] : null;
+
+                var secantFromPrevious = previous != null ? (point.Y - previous.Y) / (point.X - previous.X) : 0f;
+                var secantToNext = next != null ? (next.Y - point.Y) / (next.X - point.X) : 0f;
+
+                float secantAcross;
+                if (next == null)
+                {
+                    secantAcross = secantFromPrevious;
+                }
+                else if (previous == null)
+                {
+                    secantAcross = secantToNext;
+                }
+                else
+                {
+                    secantAcross = (next.Y - previous.Y) / (next.X - previous.X);
+                }
+
+                switch (point.IncomingTangent)
+                {
+                    case CurvePoint.TangentType.Linear:
+                        point.SlopeIncoming = secantFromPrevious;
+                        break;
+                    case CurvePoint.TangentType.Spline:
+                        point.SlopeIncoming = secantAcross;
+                        break;
+                    case CurvePoint.TangentType.Mirror:
+                        point.SlopeIncoming = 0f;
+                        break;
+                    case CurvePoint.TangentType.Sine:
+                        point.SlopeIncoming = SineSlope(point, previous, incoming: true);
+                        break;
+                }
+
+                switch (point.OutgoingTangent)
+                {
+                    case CurvePoint.TangentType.Linear:
+                        point.SlopeOutgoing = secantToNext;
+                        break;
+                    case CurvePoint.TangentType.Spline:
+                        point.SlopeOutgoing = secantAcross;
+                        break;
+                    case CurvePoint.TangentType.Mirror:
+                        point.SlopeOutgoing = point.SlopeIncoming;
+                        break;
+                    case CurvePoint.TangentType.Sine:
+                        point.SlopeOutgoing = SineSlope(point, next, incoming: false);
+                        break;
+                }
+
+                if (point.IncomingTangent == CurvePoint.TangentType.Mirror)
+                {
+                    point.SlopeIncoming = point.SlopeOutgoing;
+                }
+            }
+        }
+
+        private static float SineSlope(CurvePoint point, CurvePoint? neighbour, bool incoming)
+        {
+            const float LowSlope = 0.041337699f;
+            const float HighSlope = 1.60305f;
+
+            if (neighbour == null)
+            {
+                return incoming ? -HighSlope : LowSlope;
+            }
+
+            var dx = incoming ? point.X - neighbour.X : neighbour.X - point.X;
+            var dy = incoming ? point.Y - neighbour.Y : neighbour.Y - point.Y;
+            var slope = incoming
+                ? (dy > 0f ? LowSlope : HighSlope)
+                : (dy <= 0f ? LowSlope : HighSlope);
+
+            if (dx == 0f)
+            {
+                return incoming ? -slope : slope;
+            }
+
+            return (1f / dx) * (incoming ? -slope : slope);
         }
         private float ClampToDomainSpace(float value)
         {
