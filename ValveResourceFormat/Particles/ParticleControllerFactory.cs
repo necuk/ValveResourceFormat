@@ -189,6 +189,7 @@ namespace ValveResourceFormat.Particles
                 ["C_OP_CurlNoiseForce"] = forceGeneratorInfo => new CurlNoiseForce(forceGeneratorInfo),
                 ["C_OP_PerParticleForce"] = forceGeneratorInfo => new PerParticleForce(forceGeneratorInfo),
                 ["C_OP_RandomForce"] = forceGeneratorInfo => new RandomForce(forceGeneratorInfo),
+                ["C_OP_TimeVaryingForce"] = forceGeneratorInfo => new TimeVaryingForce(forceGeneratorInfo),
                 ["C_OP_TurbulenceForce"] = forceGeneratorInfo => new TurbulenceForce(forceGeneratorInfo),
                 ["C_OP_TwistAroundAxis"] = forceGeneratorInfo => new TwistAroundAxis(forceGeneratorInfo),
             };
