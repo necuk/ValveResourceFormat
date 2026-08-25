@@ -41,6 +41,8 @@ namespace ValveResourceFormat.Particles
 
         private void StartSelf()
         {
+            BeginInitializerBatch();
+
             for (var i = 0; i < initialParticles; ++i)
             {
                 EmitParticle(0f);
@@ -186,6 +188,14 @@ namespace ValveResourceFormat.Particles
             // particle's initial value (fade out/in, radius interpolation) read the initialized value rather
             // than the default template.
             particleCollection.Initial[index] = emitted;
+        }
+
+        private void BeginInitializerBatch()
+        {
+            foreach (var initializer in initializers)
+            {
+                initializer.BeginInitializeBatch();
+            }
         }
 
         /// <summary>Stops emission on the system and its children, leaving live particles to finish.</summary>
@@ -513,6 +523,8 @@ namespace ValveResourceFormat.Particles
 
             foreach (var emitter in emitters)
             {
+                BeginInitializerBatch();
+
                 var strength = emitter.GetOperatorRunStrength(systemState);
 
                 if (strength <= 0.0f)

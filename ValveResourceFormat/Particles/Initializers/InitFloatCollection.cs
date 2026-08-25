@@ -18,6 +18,8 @@ namespace ValveResourceFormat.Particles.Initializers
     {
         private readonly ParticleField outputField = ParticleField.Radius;
         private readonly INumberProvider inputValue = new LiteralNumberProvider(0);
+        private float batchValue;
+        private bool batchValueResolved;
 
         public InitFloatCollection(ParticleDefinitionParser parse) : base(parse)
         {
@@ -27,9 +29,20 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(outputField);
 
+        public override void BeginInitializeBatch()
+        {
+            batchValueResolved = false;
+        }
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            particle.SetScalar(outputField, inputValue.NextNumber(particleSystemState));
+            if (!batchValueResolved)
+            {
+                batchValue = inputValue.NextNumber(particleSystemState);
+                batchValueResolved = true;
+            }
+
+            particle.SetScalar(outputField, batchValue);
 
             return particle;
         }

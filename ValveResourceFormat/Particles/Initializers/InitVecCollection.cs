@@ -17,6 +17,8 @@ namespace ValveResourceFormat.Particles.Initializers
     {
         private readonly IVectorProvider inputValue = new LiteralVectorProvider(Vector3.Zero);
         private readonly ParticleField outputField = ParticleField.Color;
+        private Vector3 batchValue;
+        private bool batchValueResolved;
 
         public InitVecCollection(ParticleDefinitionParser parse) : base(parse)
         {
@@ -26,9 +28,20 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(outputField);
 
+        public override void BeginInitializeBatch()
+        {
+            batchValueResolved = false;
+        }
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            particle.SetVector(outputField, inputValue.NextVector(particleSystemState));
+            if (!batchValueResolved)
+            {
+                batchValue = inputValue.NextVector(particleSystemState);
+                batchValueResolved = true;
+            }
+
+            particle.SetVector(outputField, batchValue);
 
             return particle;
         }
