@@ -4,6 +4,7 @@
 
 uniform bool g_bFlipY = false;
 uniform bool g_bPostProcessEnabled = true;
+uniform bool g_bColorBufferPreExposed = false;
 
 uniform float g_flToneMapScalarLinear;
 uniform float g_flExposureBiasScaleFactor;
@@ -85,7 +86,14 @@ void main()
         // The bloom terms are weighted by the exposure on its own, not by the exposed color, so keep it
         // around after the scene has been multiplied through.
         float flExposure = g_flToneMapScalarLinear * g_flExposureBiasScaleFactor;
-        vColor.rgb *= flExposure;
+        if (g_bColorBufferPreExposed)
+        {
+            vColor.rgb *= 1.0 / (1.0 - max(vColor.r, max(vColor.g, vColor.b)));
+        }
+        else
+        {
+            vColor.rgb *= flExposure;
+        }
 
         #if (D_BLOOM == 1)
             vec3 bloomSample = textureLod(g_tBloom, (min(fragCoord, g_vBloomUvScaleClamp.zw) * g_vBloomUvScaleClamp.xy).xy, 0.0).xyz;
@@ -122,7 +130,10 @@ void main()
         }
 
         vColor.rgb = pow(ClampToPositive(vColor.rgb), vec3(g_flFullScreenGamma * (1.0 / 2.2)));
-        vColor.rgb = DitherColor(vColor.rgb);
+        if (!g_bColorBufferPreExposed)
+        {
+            vColor.rgb = DitherColor(vColor.rgb);
+        }
     }
 
     outputColor = vColor;

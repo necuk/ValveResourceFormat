@@ -12,17 +12,22 @@ namespace ValveResourceFormat.Renderer.PostProcess
     {
         private readonly RendererContext RendererContext;
         private Shader? shaderMsaaResolve;
+        private Shader? shaderMsaaResolveExposed;
         private Shader? shaderDepthResolve;
         private Shader? shaderPostProcess;
         private Shader? shaderPostProcessBloom;
         private Shader? shaderCombineLuts;
         private RenderTexture? combinedLut;
+        private RenderTexture? exposedSceneColor;
         private static readonly string[] LutSamplerNames =
             ["g_tColorCorrection0", "g_tColorCorrection1", "g_tColorCorrection2", "g_tColorCorrection3"];
         private readonly OutlineRenderer Outline;
 
         /// <summary>Gets or sets the blue noise texture used for dithering in the tonemap pass.</summary>
         public RenderTexture? BlueNoise { get; set; }
+
+        /// <summary>Gets or sets the blue noise dither offset, replacing the per-frame random offset when set.</summary>
+        public Vector2? DitherOffsetOverride { get; set; }
         private readonly Random random = new();
 
         /// <summary>Gets or sets the scene average luminance used for auto-exposure calculations.</summary>
@@ -97,6 +102,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
         {
             var msaa = (byte)msaaSamples;
             shaderMsaaResolve = RendererContext.ShaderLoader.LoadShader("msaa_resolve", ("D_MSAA_SAMPLES", msaa));
+            shaderMsaaResolveExposed = RendererContext.ShaderLoader.LoadShader("msaa_resolve", ("D_MSAA_SAMPLES", msaa), ("D_EXPOSURE", 1));
             shaderDepthResolve = RendererContext.ShaderLoader.LoadShader("depth_resolve", ("D_MSAA_SAMPLES", msaa));
             shaderPostProcess = RendererContext.ShaderLoader.LoadShader("post_processing", ("D_BLOOM", 0));
             shaderPostProcessBloom = RendererContext.ShaderLoader.LoadShader("post_processing", ("D_BLOOM", 1));
@@ -213,11 +219,9 @@ namespace ValveResourceFormat.Renderer.PostProcess
             };
         }
 
-        private void SetPostProcessUniforms(Shader shader, TonemapSettings TonemapSettings)
+        private void SetPostProcessUniforms(Shader shader, TonemapSettings TonemapSettings, Vector2 ditherOffset)
         {
             // Randomize dither offset every frame
-            var ditherOffset = new Vector2(random.NextSingle(), random.NextSingle());
-
             // Dither by one 255th of frame color originally. Modified to be twice that, because it looks better.
             shader.SetUniform("g_vBlueNoiseDitherParams", new Vector4(ditherOffset, 1.0f / 256.0f, 2.0f / 255.0f));
 
@@ -243,11 +247,13 @@ namespace ValveResourceFormat.Renderer.PostProcess
             RenderTexture resolveTarget, Camera camera, bool flipY)
         {
             Debug.Assert(shaderMsaaResolve != null);
+            Debug.Assert(shaderMsaaResolveExposed != null);
             Debug.Assert(shaderPostProcess != null && shaderPostProcessBloom != null);
 
             Debug.Assert(BlueNoise != null);
 
             using var _ = GraphicsContext.RenderState.Scope(depthTest: false, depthWrite: false);
+            var ditherOffset = DitherOffsetOverride ?? new Vector2(random.NextSingle(), random.NextSingle());
 
             using (new GLDebugGroup("MSAA Resolve"))
             {
@@ -271,10 +277,40 @@ namespace ValveResourceFormat.Renderer.PostProcess
             }
 
             RenderTexture resolvedScene = resolveTarget;
+            var colorBufferPreExposed = false;
 
             if (DOF.Enabled)
             {
                 resolvedScene = DOF.Render(resolveTarget);
+            }
+            else if (Enabled)
+            {
+                if (exposedSceneColor == null || exposedSceneColor.Width != resolveTarget.Width || exposedSceneColor.Height != resolveTarget.Height)
+                {
+                    exposedSceneColor?.Delete();
+                    exposedSceneColor = RenderTexture.Create(resolveTarget.Width, resolveTarget.Height,
+                        ImageFormat.IMAGE_FORMAT_R11G11B10_FLOAT, "ExposedSceneColor");
+                    exposedSceneColor.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
+                    exposedSceneColor.SetWrapMode(RsTextureAddressMode.Clamp);
+                }
+
+                shaderMsaaResolveExposed.Use();
+                shaderMsaaResolveExposed.SetTexture(0, "g_tSourceMsaa", colorBufferRead.Color);
+                shaderMsaaResolveExposed.SetTexture((int)ReservedTextureSlots.BlueNoise, "g_tBlueNoise", BlueNoise);
+                shaderMsaaResolveExposed.SetUniform("g_bFlipY", flipY);
+                shaderMsaaResolveExposed.SetUniform("g_flToneMapScalarLinear", TonemapScalar);
+                shaderMsaaResolveExposed.SetUniform("g_flExposureBiasScaleFactor", MathF.Pow(2.0f, State.TonemapSettings.ExposureBias));
+                shaderMsaaResolveExposed.SetUniform("g_vBlueNoiseDitherParams", new Vector4(ditherOffset, 1.0f / 256.0f, 4.0f / 255.0f));
+                GL.BindImageTexture(1, exposedSceneColor.Handle, 0, false, 0,
+                    TextureAccess.WriteOnly, SizedInternalFormat.R11fG11fB10f);
+
+                var groupsX = (exposedSceneColor.Width + 7) / 8;
+                var groupsY = (exposedSceneColor.Height + 7) / 8;
+                GL.DispatchCompute(groupsX, groupsY, 1);
+                GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit | MemoryBarrierFlags.TextureFetchBarrierBit);
+
+                resolvedScene = exposedSceneColor;
+                colorBufferPreExposed = true;
             }
 
             using (new GLDebugGroup("Tonemapping, Color Correction, Bloom"))
@@ -285,7 +321,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
 
                 if (State.HasBloom)
                 {
-                    Bloom.Render(resolvedScene);
+                    Bloom.Render(colorBufferPreExposed ? resolveTarget : resolvedScene);
                 }
 
                 colorBufferDraw.Bind(FramebufferTarget.DrawFramebuffer);
@@ -312,9 +348,10 @@ namespace ValveResourceFormat.Renderer.PostProcess
                 postProcessShader.SetUniform("g_bFlipY", flipY);
 
                 postProcessShader.SetUniform("g_bPostProcessEnabled", Enabled);
+                postProcessShader.SetUniform("g_bColorBufferPreExposed", colorBufferPreExposed);
 
                 postProcessShader.SetUniform("g_flToneMapScalarLinear", TonemapScalar);
-                SetPostProcessUniforms(postProcessShader, State.TonemapSettings);
+                SetPostProcessUniforms(postProcessShader, State.TonemapSettings, ditherOffset);
 
                 var invDimensions = 1.0f / State.ColorCorrectionLutDimensions;
                 var invRange = new Vector2(1.0f - invDimensions, 0.5f * invDimensions);
@@ -379,9 +416,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
                 return exposure;
             }
 
-            var curveInput = State.TonemapSettings.InvertTonemapping(MiddleGrey);
-            ExposureTargetLuminance = float.IsNaN(curveInput) ? MiddleGrey : curveInput;
-
+            ExposureTargetLuminance = MiddleGrey;
             var rawScalar = ExposureTargetLuminance / AverageLuminance;
             if (!float.IsFinite(rawScalar))
             {

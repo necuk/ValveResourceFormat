@@ -8,11 +8,20 @@ layout (local_size_x = 8, local_size_y = 8) in;
 #define D_DOF 0
 
 #define D_MSAA_SAMPLES 1
+#define D_EXPOSURE 0
 
 uniform bool g_bFlipY = false;
 
 layout(binding = 0) uniform sampler2DMS g_tSourceMsaa;
+#if D_EXPOSURE == 1
+layout(binding = 1, r11f_g11f_b10f) uniform writeonly image2D g_tDest;
+uniform sampler2D g_tBlueNoise;
+uniform float g_flToneMapScalarLinear;
+uniform float g_flExposureBiasScaleFactor;
+uniform vec4 g_vBlueNoiseDitherParams;
+#else
 layout(binding = 1, rgba16f) uniform writeonly image2D g_tDest;
+#endif
 
 #if D_DOF == 1
 uniform mat4 g_invViewProjMatrix;
@@ -51,6 +60,9 @@ void main()
         // The range test catches both and survives the fast-math no-NaN folding that would defeat isnan().
         bvec3 valid = lessThanEqual(texel.rgb, vec3(65504.0));
         vec3 s = mix(vec3(0.0), clamp(texel.rgb, vec3(0.0), vec3(65504.0)), valid);
+#if D_EXPOSURE == 1
+        s *= g_flToneMapScalarLinear * g_flExposureBiasScaleFactor;
+#endif
         // Karis average: weight by inverse luminance to reduce fireflies
         resolved += s * (invNumSamples / (max(s.r, max(s.g, s.b)) + 1.0));
 
@@ -61,8 +73,15 @@ void main()
 #endif
     }
 
+#if D_EXPOSURE == 1
+    vec2 noiseCoord = vec2(coord.x, destSize.y - 1 - coord.y);
+    vec2 blueNoiseCoords = noiseCoord * g_vBlueNoiseDitherParams.z + g_vBlueNoiseDitherParams.xy;
+    vec3 blueNoise = textureLod(g_tBlueNoise, blueNoiseCoords, 0.0).rgb;
+    resolved = clamp(resolved + (blueNoise - 0.5) * g_vBlueNoiseDitherParams.w, 0.0, 0.99);
+#else
     // Inverse Karis tonemap
     resolved *= 1.0 / (1.0 - max(resolved.r, max(resolved.g, resolved.b)));
+#endif
 
 #if D_DOF == 1
     vec2 sampleUV = (vec2(coord) + 0.5) * g_vInvViewportSize.xy;

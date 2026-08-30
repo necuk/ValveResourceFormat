@@ -962,7 +962,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         MainFramebuffer = Framebuffer.Prepare(nameof(MainFramebuffer),
             4, 4,
             NumSamples,
-            ImageFormat.RGBA16161616F,
+            ImageFormat.IMAGE_FORMAT_R11G11B10_FLOAT,
             ImageFormat.D32
         );
 
