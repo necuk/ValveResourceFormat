@@ -135,7 +135,7 @@ void main()
             //                                + w * (blueNoise_UNORM - 0.5) )        dither, noise read UNORM
             // E = the frame's adapted exposure (g_flToneMapScalarLinear), w = 4/255,
             // noise uv = floor((pix * scale + offset) * 256) mod 256, point-sampled.
-            vec3 exposed = clamp(vColor.rgb * flExposure, vec3(0.0), vec3(65504.0));
+            vec3 exposed = clamp(vColor.rgb, vec3(0.0), vec3(65504.0)) * flExposure; // model: y = clip(msaa,0,65504)*E
             vec3 packed = exposed / (1.0 + max(exposed.r, max(exposed.g, exposed.b)));
 
             ivec2 noiseCoord = ivec2(mod(floor((floor(gl_FragCoord.xy - vec2(0.5)) * g_vBlueNoiseDitherParams.z + g_vBlueNoiseDitherParams.xy) * 256.0), 256.0));
