@@ -213,13 +213,23 @@ namespace ValveResourceFormat.Renderer.PostProcess
             };
         }
 
-        private void SetPostProcessUniforms(Shader shader, TonemapSettings TonemapSettings)
+        private void SetPostProcessUniforms(Shader shader, TonemapSettings TonemapSettings, bool engineResolveSemantics)
         {
-            // Randomize dither offset every frame
-            var ditherOffset = new Vector2(random.NextSingle(), random.NextSingle());
+            if (engineResolveSemantics)
+            {
+                // Engine resolve law (tools/vrf/engine_resolve_forward.py): the blue-noise dither is a
+                // fixed per-frame CB0 vector, read as UNORM, amplitude 4/255 at scale 1/256, added BEFORE
+                // the RTZ R11G11B10 quantization. dust2 capture values: offset (0.552585065, 0.26936838).
+                shader.SetUniform("g_vBlueNoiseDitherParams", new Vector4(0.552585065f, 0.26936838f, 1.0f / 256.0f, 4.0f / 255.0f));
+            }
+            else
+            {
+                // Randomize dither offset every frame
+                var ditherOffset = new Vector2(random.NextSingle(), random.NextSingle());
 
-            // Dither by one 255th of frame color originally. Modified to be twice that, because it looks better.
-            shader.SetUniform("g_vBlueNoiseDitherParams", new Vector4(ditherOffset, 1.0f / 256.0f, 2.0f / 255.0f));
+                // Dither by one 255th of frame color originally. Modified to be twice that, because it looks better.
+                shader.SetUniform("g_vBlueNoiseDitherParams", new Vector4(ditherOffset, 1.0f / 256.0f, 2.0f / 255.0f));
+            }
 
             shader.SetUniform("g_flExposureBiasScaleFactor", MathF.Pow(2.0f, TonemapSettings.ExposureBias));
             shader.SetUniform("g_flShoulderStrength", TonemapSettings.ShoulderStrength);
@@ -229,7 +239,10 @@ namespace ValveResourceFormat.Renderer.PostProcess
             shader.SetUniform("g_flToeNum", TonemapSettings.ToeNum);
             shader.SetUniform("g_flToeDenom", TonemapSettings.ToeDenom);
 
-            var effectiveWhitePoint = TonemapSettings.EffectiveWhitePoint;
+            // Engine white-point law: the .vpost value is authored in log2 stops and the tonemap clamps
+            // at exp2(whitePoint) - dust2 1.648926 -> 3.1360011 (captured 3.136001), inferno 4.0 -> 16
+            // (NOT the old VRF 4*2.8=11.2). Same law as engine_tonemap_forward.py: t = min(col*2.8, exp2(wp)).
+            var effectiveWhitePoint = MathF.Pow(2.0f, TonemapSettings.WhitePoint);
             var tonemappedWhitePoint = TonemapSettings.ApplyTonemapping(effectiveWhitePoint);
             shader.SetUniform("g_flWhitePoint", effectiveWhitePoint);
             shader.SetUniform("g_flWhitePointScale", 1.0f / tonemappedWhitePoint);
@@ -313,8 +326,14 @@ namespace ValveResourceFormat.Renderer.PostProcess
 
                 postProcessShader.SetUniform("g_bPostProcessEnabled", Enabled);
 
+                // The engine resolve semantics (exposure-in-pack, RTZ R11G11B10, dither before
+                // quantization) only apply to the multisampled path; the single-sample path keeps
+                // VRF's legacy behavior.
+                var engineResolveSemantics = colorBufferRead.NumSamples > 1;
+                postProcessShader.SetUniform("g_bEngineResolveSemantics", engineResolveSemantics);
+
                 postProcessShader.SetUniform("g_flToneMapScalarLinear", TonemapScalar);
-                SetPostProcessUniforms(postProcessShader, State.TonemapSettings);
+                SetPostProcessUniforms(postProcessShader, State.TonemapSettings, engineResolveSemantics);
 
                 var invDimensions = 1.0f / State.ColorCorrectionLutDimensions;
                 var invRange = new Vector2(1.0f - invDimensions, 0.5f * invDimensions);
