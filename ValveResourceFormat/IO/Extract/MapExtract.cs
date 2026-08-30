@@ -41,6 +41,25 @@ public sealed class MapExtract
 
     private readonly Dictionary<string, Vector2?> MaterialTextureSizes = [];
 
+    /// <summary>
+    /// what to group overlay geometry by when reconstructing, tthe projected geometry of the overlays that share a material, render order,
+    /// tint and flags, which is everything a rebuilt overlay carries besides its shape.
+    /// </summary>
+    private readonly record struct OverlayGroup(string Material, int RenderOrder, Vector4 Tint, ObjectTypeFlags Flags);
+
+    private const ObjectTypeFlags OverlayFlags = ObjectTypeFlags.DisabledInLowQuality | ObjectTypeFlags.RenderToCubemaps | ObjectTypeFlags.RenderWithDynamic | ObjectTypeFlags.NoShadows;
+
+    // the projected geometry of every overlay of the map, one piece per compiled overlay mesh, welded together and
+    // split into the overlays at the end
+    private readonly Dictionary<OverlayGroup, List<(Vector3[] Positions, Vector2[] TexCoords, int[] Triangles)>> WorldOverlayGeometry = [];
+
+    // the overlays rebuilt linked to the geometry they were projected onto, used to find the meshes they were projected on
+    private readonly List<(CMapStaticOverlay Overlay, PolygonMesh Geometry)> OverlayReceivers = [];
+
+    // aggregate models whose fragments are instanced with transforms of their own; the fragments of every other
+    // aggregate keep the aggregate's world space geometry, recentred on their prop
+    private readonly HashSet<string> InstancedAggregateModels = [];
+
     // units the generated physics surface materials span, declared in their vmat so Hammer projects them the same:
     // their 128 texel texture at the density of the tool textures (64 texels over 8 units)
     private const int AutoPhysicsMaterialWorldMapping = 16;
@@ -486,6 +505,8 @@ public sealed class MapExtract
             }
         }
 
+        GenerateOverlays();
+
         // the hammer geometry of all world nodes is welded together here, then split back into objects
         var worldHammerMeshes = GenerateHammerMeshes(WorldHammerMeshBuilders);
         if (worldHammerMeshes.Count > 0)
@@ -533,6 +554,8 @@ public sealed class MapExtract
                 MapDocument.World.Children.Add(hammermesh);
             }
         }
+
+        ResolveOverlayProjectionTargets();
 
         using var stream = new MemoryStream();
 
@@ -750,16 +773,12 @@ public sealed class MapExtract
 
         foreach (var (group, builder) in builders)
         {
-            // connect the faces across the seams the drawcall split added, edge by edge, only after try to connect vertices
-            // connecting vertices blindly can lead to bad topology
-            builder.Mesh.MergeCoincidentOpenEdges(HammerMeshWeldDistance);
-            builder.Mesh.MergeVerticesWithinDistance(HammerMeshWeldDistance);
-
             var materialName = Path.GetFileNameWithoutExtension(group.Material);
             var meshIndex = meshIndexPerMaterial.GetValueOrDefault(materialName);
 
-            // one Hammer mesh per connected island, so separate objects the compiler batched together come apart again
-            foreach (var meshData in builder.GenerateMeshes())
+            // the draw calls welded back together, one Hammer mesh per connected part, so separate objects the
+            // compiler batched together come apart again
+            foreach (var meshData in builder.GenerateMeshes(HammerMeshWeldDistance))
             {
                 hammerMeshes.Add(new CMapMesh()
                 {
@@ -825,6 +844,649 @@ public sealed class MapExtract
         }
 
         return hammerMeshesToReturn;
+    }
+
+    internal void AddOverlayGeometry(Model model, Resource resource, Matrix4x4 transform, KVObject sceneObject, ObjectTypeFlags objectFlags)
+    {
+        var modelExtract = new ModelExtract(resource, FileLoader);
+        modelExtract.GrabMaterialInputSignatures(resource);
+
+        foreach (var embedded in model.GetEmbeddedMeshes())
+        {
+            var submeshDrawCalls = new List<(DmeDag Dag, KVObject DrawCall)>();
+            var dmxOptions = new ModelExtract.DatamodelRenderMeshExtractOptions
+            {
+                MaterialInputSignatures = modelExtract.MaterialInputSignatures,
+                SplitDrawCallsIntoSeparateSubmeshes = true,
+                SubmeshDrawCalls = submeshDrawCalls,
+            };
+
+            using var dmxMesh = ModelExtract.ConvertMeshToDatamodelMesh(embedded.Mesh, Path.GetFileNameWithoutExtension(resource.FileName ?? "overlay"), dmxOptions);
+
+            foreach (var (dag, drawCall) in submeshDrawCalls)
+            {
+                if (dag.Shape is not DmeMesh shape)
+                {
+                    continue;
+                }
+
+                var material = drawCall.GetStringProperty("m_material") ?? drawCall.GetStringProperty("m_pMaterial") ?? string.Empty;
+
+                var vertexData = (DmeVertexData)shape.BaseStates[0];
+                var positions = HammerMeshBuilder.GetElementArraySafe<Vector3>(vertexData, "position$0");
+                var texCoords = HammerMeshBuilder.GetElementArraySafe<Vector2>(vertexData, "texcoord$0");
+
+                if (positions is null || texCoords is null || positions.Count == 0 || texCoords.Count != positions.Count)
+                {
+                    continue;
+                }
+
+                var worldPositions = new Vector3[positions.Count];
+                for (var i = 0; i < worldPositions.Length; i++)
+                {
+                    worldPositions[i] = transform.IsIdentity ? positions[i] : Vector3.Transform(positions[i], transform);
+                }
+
+                // the triangles of every face set, faces fanned
+                var triangles = new List<int>();
+                var faceIndices = new List<int>(4);
+
+                foreach (var faceSet in shape.FaceSets.Cast<DmeFaceSet>())
+                {
+                    foreach (var index in faceSet.Faces)
+                    {
+                        if (index != -1)
+                        {
+                            faceIndices.Add(index);
+                            continue;
+                        }
+
+                        for (var i = 1; i + 1 < faceIndices.Count; i++)
+                        {
+                            triangles.Add(faceIndices[0]);
+                            triangles.Add(faceIndices[i]);
+                            triangles.Add(faceIndices[i + 1]);
+                        }
+
+                        faceIndices.Clear();
+                    }
+                }
+
+                var tintColor = sceneObject.GetSubCollection("m_vTintColor").ToVector4();
+                var renderOrder = (int)sceneObject.GetIntegerProperty("m_nOverlayRenderOrder");
+                var group = new OverlayGroup(material, renderOrder, tintColor, objectFlags & OverlayFlags);
+
+                if (!WorldOverlayGeometry.TryGetValue(group, out var pieces))
+                {
+                    pieces = [];
+                    WorldOverlayGeometry.Add(group, pieces);
+                }
+
+                // the projected triangles with the decal's texture coordinates on their corners,
+                // one piece per compiled mesh: within one, whatever touches belongs together
+                pieces.Add((worldPositions, [.. texCoords], [.. triangles]));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Rebuilds the map's overlays from the projected geometry collected by <see cref="AddOverlayGeometry"/>.
+    /// </summary>
+    private void GenerateOverlays()
+    {
+        var indices = new int[3];
+        var corners = new HammerMeshBuilder.Corner[3];
+
+        foreach (var (group, pieces) in WorldOverlayGeometry)
+        {
+            // a surface stacked behind another receives its own copy of the decal, drop those hidden copies over the
+            // whole group at once or they come back as duplicated faces stacked on the rebuilt overlays, the copies
+            // can sit in different compiled meshes when the surfaces fall into different cells
+            var vertexCount = 0;
+            var indexCount = 0;
+
+            foreach (var piece in pieces)
+            {
+                vertexCount += piece.Positions.Length;
+                indexCount += piece.Triangles.Length;
+            }
+
+            var positions = new Vector3[vertexCount];
+            var texCoords = new Vector2[vertexCount];
+            var triangles = new int[indexCount];
+            var vertexOffset = 0;
+            var indexOffset = 0;
+
+            foreach (var piece in pieces)
+            {
+                piece.Positions.CopyTo(positions, vertexOffset);
+                piece.TexCoords.CopyTo(texCoords, vertexOffset);
+
+                for (var i = 0; i < piece.Triangles.Length; i++)
+                {
+                    triangles[indexOffset + i] = vertexOffset + piece.Triangles[i];
+                }
+
+                vertexOffset += piece.Positions.Length;
+                indexOffset += piece.Triangles.Length;
+            }
+
+            var dropped = HammerOverlayBuilder.RemoveStackedDuplicates(positions, texCoords, triangles);
+
+            // within one compiled mesh whatever touches belongs together, a multi face overlay included; across the
+            // compiled meshes only seams where the texture mapping continues join, that is where one overlay was cut
+            // by the compiler, while separate overlays of the same material that abut, or touch at a point, stay apart
+            var combined = new PolygonMesh();
+            var triangleOrdinal = 0;
+
+            foreach (var piece in pieces)
+            {
+                var builder = new HammerMeshBuilder { ProgressReporter = ProgressReporter };
+                var baseVertex = builder.AddVertices(piece.Positions);
+
+                for (var t = 0; t + 2 < piece.Triangles.Length; t += 3, triangleOrdinal++)
+                {
+                    if (dropped[triangleOrdinal])
+                    {
+                        continue;
+                    }
+
+                    for (var i = 0; i < 3; i++)
+                    {
+                        indices[i] = baseVertex + piece.Triangles[t + i];
+                        corners[i] = new HammerMeshBuilder.Corner(TexCoord: piece.TexCoords[piece.Triangles[t + i]]);
+                    }
+
+                    builder.AddFace(indices, group.Material, corners);
+                }
+
+                foreach (var welded in builder.Mesh.RemergeDrawCalls(HammerMeshWeldDistance))
+                {
+                    combined.MergeMesh(welded, out _, out _, out _);
+                }
+            }
+
+            foreach (var geometry in combined.RemergeDrawCalls(HammerMeshWeldDistance, (hEdge, hPartner) => combined.TextureCoordinatesContinueAcross(hEdge, hPartner), mergeVertices: false))
+            {
+                var overlay = HammerOverlayBuilder.FromProjectedMesh(geometry, group.Material, GetMaterialTextureSize);
+                if (overlay is null)
+                {
+                    continue;
+                }
+
+                // the geometry tells which meshes the overlay projects onto, once those exist
+                OverlayReceivers.Add((overlay, geometry));
+
+                overlay.RenderOrder = group.RenderOrder;
+
+                if (group.Tint != Vector4.Zero)
+                {
+                    overlay.TintColor = ConvertToColor32(group.Tint * 255f);
+                }
+
+                overlay.DisabledInLowQuality = group.Flags.HasFlag(ObjectTypeFlags.DisabledInLowQuality);
+                overlay.RenderToCubemaps = group.Flags.HasFlag(ObjectTypeFlags.RenderToCubemaps);
+                overlay.RenderWithDynamic = group.Flags.HasFlag(ObjectTypeFlags.RenderWithDynamic);
+                overlay.DisableShadows = group.Flags.HasFlag(ObjectTypeFlags.NoShadows);
+
+                MapDocument.World.Children.Add(overlay);
+                OverlaysSelectionSet?.SelectionSetData.SelectedObjects.Add(overlay);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Points each rebuilt overlay at the meshes it was compiled onto, in practice we need to mathc overlapping triangles similarly to
+    /// PhysicsTriangleMatcher.
+    /// </summary>
+    private void ResolveOverlayProjectionTargets()
+    {
+        if (OverlayReceivers.Count == 0)
+        {
+            return;
+        }
+
+        // what an overlay can land on: rendered geometry and props, not physics and not other overlays
+        var candidates = new List<CMapMesh>();
+        var props = new List<CMapEntity>();
+        var maxNodeId = 0;
+
+        void Collect(MapNode node)
+        {
+            maxNodeId = Math.Max(maxNodeId, node.NodeID);
+
+            if (node is CMapMesh mesh && node is not CMapStaticOverlay && !IsPhysicsMesh(mesh))
+            {
+                candidates.Add(mesh);
+            }
+            else if (node is CMapEntity entity
+                && entity.EntityProperties.ContainsKey("classname") && entity.EntityProperties["classname"] as string == "prop_static"
+                && entity.EntityProperties.ContainsKey("model"))
+            {
+                props.Add(entity);
+            }
+
+            foreach (var child in node.Children.OfType<MapNode>())
+            {
+                Collect(child);
+            }
+        }
+
+        Collect(MapDocument.World);
+
+        foreach (var mesh in candidates)
+        {
+            if (mesh.NodeID == 0)
+            {
+                mesh.NodeID = ++maxNodeId;
+            }
+        }
+
+        foreach (var prop in props)
+        {
+            if (prop.NodeID == 0)
+            {
+                prop.NodeID = ++maxNodeId;
+            }
+        }
+
+        // every candidate face in world space, in a grid for lookup by position
+        const float PlaneDistance = 0.25f;
+        const float CellSize = 64f;
+
+        // what a matched face targets: a mesh targets itself, a face of an aggregate targets every fragment prop of
+        // the aggregate instance, a face cannot tell which fragment it belongs to
+        var targetSets = new List<int[]>();
+
+        var faces = new List<(int TargetSet, Vector3[] Corners, Vector3 Normal, float Offset)>();
+        var grid = new Dictionary<(int X, int Y, int Z), List<int>>();
+
+        static (int X, int Y, int Z) Cell(Vector3 position)
+            => ((int)MathF.Floor(position.X / CellSize), (int)MathF.Floor(position.Y / CellSize), (int)MathF.Floor(position.Z / CellSize));
+
+        void InsertFace(int targetSet, Vector3[] corners)
+        {
+            // Newell normal and bounds
+            var normal = Vector3.Zero;
+            var min = new Vector3(float.MaxValue);
+            var max = new Vector3(float.MinValue);
+
+            for (var i = 0; i < corners.Length; i++)
+            {
+                var current = corners[i];
+                var next = corners[(i + 1) % corners.Length];
+                normal += new Vector3((current.Y - next.Y) * (current.Z + next.Z), (current.Z - next.Z) * (current.X + next.X), (current.X - next.X) * (current.Y + next.Y));
+                min = Vector3.Min(min, current);
+                max = Vector3.Max(max, current);
+            }
+
+            if (normal.LengthSquared() < 1e-10f)
+            {
+                return;
+            }
+
+            normal = Vector3.Normalize(normal);
+            faces.Add((targetSet, corners, normal, Vector3.Dot(normal, corners[0])));
+
+            var (minX, minY, minZ) = Cell(min - new Vector3(PlaneDistance));
+            var (maxX, maxY, maxZ) = Cell(max + new Vector3(PlaneDistance));
+
+            for (var x = minX; x <= maxX; x++)
+            {
+                for (var y = minY; y <= maxY; y++)
+                {
+                    for (var z = minZ; z <= maxZ; z++)
+                    {
+                        if (!grid.TryGetValue((x, y, z), out var cellFaces))
+                        {
+                            cellFaces = [];
+                            grid.Add((x, y, z), cellFaces);
+                        }
+
+                        cellFaces.Add(faces.Count - 1);
+                    }
+                }
+            }
+        }
+
+        foreach (var mesh in candidates)
+        {
+            var positions = mesh.MeshData.VertexData.Streams.OfType<CDmePolygonMeshDataStream<Vector3>>().FirstOrDefault(s => s.Name == "position:0")?.Data;
+            if (positions is null)
+            {
+                continue;
+            }
+
+            var meshTargetSet = targetSets.Count;
+            targetSets.Add([mesh.NodeID]);
+
+            var angles = mesh.Angles;
+            var transform = Matrix4x4.CreateScale(mesh.Scales)
+                * Matrix4x4.CreateFromQuaternion(EntityTransformHelper.EulerAnglesToQuaternion(new Vector3(angles.Pitch, angles.Yaw, angles.Roll)))
+                * Matrix4x4.CreateTranslation(mesh.Origin);
+
+            var meshData = mesh.MeshData;
+            var corners = new List<Vector3>();
+
+            for (var faceIndex = 0; faceIndex < meshData.FaceEdgeIndices.Count; faceIndex++)
+            {
+                corners.Clear();
+
+                var firstEdge = meshData.FaceEdgeIndices[faceIndex];
+                var edge = firstEdge;
+                do
+                {
+                    corners.Add(Vector3.Transform(positions[meshData.VertexDataIndices[meshData.EdgeVertexIndices[edge]]], transform));
+                    edge = meshData.EdgeNextIndices[edge];
+                }
+                while (edge != firstEdge && corners.Count < 1024);
+
+                if (corners.Count < 3)
+                {
+                    continue;
+                }
+
+                InsertFace(meshTargetSet, [.. corners]);
+            }
+        }
+
+        // only the props near some overlay's receivers are worth loading and matching
+        const float CoarseCellSize = 1024f;
+
+        static (int X, int Y, int Z) CoarseCell(Vector3 position)
+            => ((int)MathF.Floor(position.X / CoarseCellSize), (int)MathF.Floor(position.Y / CoarseCellSize), (int)MathF.Floor(position.Z / CoarseCellSize));
+
+        var coarse = new HashSet<(int X, int Y, int Z)>();
+
+        foreach (var (_, geometry) in OverlayReceivers)
+        {
+            foreach (var hVertex in geometry.VertexHandles)
+            {
+                coarse.Add(CoarseCell(geometry.Positions[hVertex]));
+            }
+        }
+
+        bool NearOverlays(Vector3 position)
+        {
+            var (cx, cy, cz) = CoarseCell(position);
+
+            for (var x = cx - 1; x <= cx + 1; x++)
+            {
+                for (var y = cy - 1; y <= cy + 1; y++)
+                {
+                    for (var z = cz - 1; z <= cz + 1; z++)
+                    {
+                        if (coarse.Contains((x, y, z)))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        // the fragment props of one aggregate reference the per draw call models this extract generates, which don't
+        // exist in the compiled map: their geometry is one draw call of the aggregate's own model, its name is theirs
+        // without the draw suffix and the suffix is the draw call's index. Every fragment carries a transform of its
+        // own, so each prop places just its draw call's triangles; an ordinary prop places its whole model
+        static string StripDrawSuffix(string modelName, out int drawCall)
+        {
+            drawCall = -1;
+
+            if (!modelName.Contains("_agg_", StringComparison.Ordinal))
+            {
+                return modelName;
+            }
+
+            var suffix = modelName.LastIndexOf("_draw", StringComparison.Ordinal);
+
+            if (suffix < 0 || !modelName.EndsWith(".vmdl", StringComparison.Ordinal)
+                || !int.TryParse(modelName.AsSpan(suffix + "_draw".Length, modelName.Length - suffix - "_draw".Length - ".vmdl".Length), out drawCall))
+            {
+                drawCall = -1;
+                return modelName;
+            }
+
+            return string.Concat(modelName.AsSpan(0, suffix), ".vmdl");
+        }
+
+        // the render triangles of each prop model, in model space with the range of each draw call, loaded once per model
+        var modelTriangles = new Dictionary<string, (Vector3[] Positions, int[] Triangles, List<(int Start, int Length)> DrawCalls)?>();
+
+        foreach (var prop in props)
+        {
+            if (!NearOverlays(prop.Origin))
+            {
+                continue;
+            }
+
+            var loadName = StripDrawSuffix((string)prop.EntityProperties["model"]!, out var drawCall);
+
+            if (!modelTriangles.TryGetValue(loadName, out var data))
+            {
+                data = LoadModelTriangles(loadName);
+                modelTriangles[loadName] = data;
+            }
+
+            if (data is not { } propModel)
+            {
+                continue;
+            }
+
+            var (start, length) = drawCall >= 0 && drawCall < propModel.DrawCalls.Count
+                ? propModel.DrawCalls[drawCall]
+                : (0, propModel.Triangles.Length);
+
+            var propAngles = prop.Angles;
+            var propTransform = Matrix4x4.CreateScale(prop.Scales)
+                * Matrix4x4.CreateFromQuaternion(EntityTransformHelper.EulerAnglesToQuaternion(new Vector3(propAngles.Pitch, propAngles.Yaw, propAngles.Roll)))
+                * Matrix4x4.CreateTranslation(prop.Origin);
+
+            // a recentred fragment's geometry is already in world space in the aggregate, its origin is only the
+            // recentring, while an instanced fragment's geometry is local to its transform
+            if (drawCall >= 0 && !InstancedAggregateModels.Contains(loadName))
+            {
+                propTransform = Matrix4x4.Identity;
+            }
+
+            var propTargetSet = targetSets.Count;
+            targetSets.Add([prop.NodeID]);
+
+            for (var t = start; t + 2 < start + length; t += 3)
+            {
+                var a = Vector3.Transform(propModel.Positions[propModel.Triangles[t]], propTransform);
+
+                if (!NearOverlays(a))
+                {
+                    continue;
+                }
+
+                var b = Vector3.Transform(propModel.Positions[propModel.Triangles[t + 1]], propTransform);
+                var c = Vector3.Transform(propModel.Positions[propModel.Triangles[t + 2]], propTransform);
+                InsertFace(propTargetSet, [a, b, c]);
+            }
+        }
+
+        foreach (var (overlay, geometry) in OverlayReceivers)
+        {
+            var targets = new SortedSet<int>();
+
+            foreach (var hFace in geometry.FaceHandles)
+            {
+                // the projected faces are triangles
+                var hEdge = hFace.Edge;
+                var a = geometry.Positions[hEdge.Vertex];
+                hEdge = hEdge.NextEdge;
+                var b = geometry.Positions[hEdge.Vertex];
+                hEdge = hEdge.NextEdge;
+                var c = geometry.Positions[hEdge.Vertex];
+                var centre = (a + b + c) / 3f;
+                var triangleNormal = Vector3.Cross(b - a, c - a);
+
+                if (triangleNormal.LengthSquared() < 1e-10f || !grid.TryGetValue(Cell(centre), out var cellFaces))
+                {
+                    continue;
+                }
+
+                triangleNormal = Vector3.Normalize(triangleNormal);
+
+                foreach (var faceIndex in cellFaces)
+                {
+                    var (targetSet, corners, normal, offset) = faces[faceIndex];
+
+                    if (targets.Contains(targetSets[targetSet][0])
+                     || Vector3.Dot(normal, triangleNormal) < 0.9f
+                     || MathF.Abs(Vector3.Dot(normal, centre) - offset) > PlaneDistance
+                     || !PointInFace(centre, corners, normal, PlaneDistance))
+                    {
+                        continue;
+                    }
+
+                    foreach (var nodeId in targetSets[targetSet])
+                    {
+                        targets.Add(nodeId);
+                    }
+                }
+            }
+
+            // the targets only count in the target objects projection mode, everything else stays at project on all
+            if (targets.Count > 0)
+            {
+                overlay.ProjectionTargets.AddRange(targets);
+                overlay.ProjectionMode = 3;
+            }
+        }
+
+        // the render triangles of a prop model at its first lod, in model space
+        (Vector3[] Positions, int[] Triangles, List<(int Start, int Length)> DrawCalls)? LoadModelTriangles(string modelName)
+        {
+            using var modelResource = FileLoader.LoadFileCompiled(modelName);
+            if (modelResource?.DataBlock is not Model propModel)
+            {
+                return null;
+            }
+
+            var positions = new List<Vector3>();
+            var triangles = new List<int>();
+            var drawCalls = new List<(int Start, int Length)>();
+
+            // straight out of the vertex and index buffers, converting these models properly is far too slow for
+            // what is only a triangle lookup
+            void AddMesh(Mesh propMesh)
+            {
+                var vbib = propMesh.VBIB;
+                var bufferStarts = new Dictionary<int, int>();
+
+                foreach (var sceneObject in propMesh.Data.GetArray("m_sceneObjects"))
+                {
+                    foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
+                    {
+                        // every draw call gets a range, even an empty one, its index is how fragment props find theirs
+                        var rangeStart = triangles.Count;
+                        drawCalls.Add((rangeStart, 0));
+
+                        var vertexBufferIndex = drawCall.GetArray("m_vertexBuffers")[0].GetInt32Property("m_hBuffer");
+
+                        if (!bufferStarts.TryGetValue(vertexBufferIndex, out var bufferStart))
+                        {
+                            var vertexBuffer = vbib.VertexBuffers[vertexBufferIndex];
+                            var positionAttribute = vertexBuffer.InputLayoutFields.FirstOrDefault(a => a.SemanticName == "POSITION");
+
+                            if (positionAttribute.SemanticName != "POSITION")
+                            {
+                                bufferStarts[vertexBufferIndex] = -1;
+                                continue;
+                            }
+
+                            bufferStart = positions.Count;
+                            bufferStarts[vertexBufferIndex] = bufferStart;
+                            positions.AddRange(VBIB.GetVector3AttributeArray(vertexBuffer, positionAttribute));
+                        }
+
+                        if (bufferStart < 0)
+                        {
+                            continue;
+                        }
+
+                        var indexBuffer = vbib.IndexBuffers[drawCall.GetSubCollection("m_indexBuffer").GetInt32Property("m_hBuffer")];
+                        var indices = GltfModelExporter.ReadIndices(indexBuffer, drawCall.GetInt32Property("m_nStartIndex"), drawCall.GetInt32Property("m_nIndexCount"), drawCall.GetInt32Property("m_nBaseVertex"));
+
+                        foreach (var index in indices)
+                        {
+                            triangles.Add(bufferStart + index);
+                        }
+
+                        drawCalls[^1] = (rangeStart, triangles.Count - rangeStart);
+                    }
+                }
+            }
+
+            foreach (var embedded in propModel.GetEmbeddedMeshesAndLoD())
+            {
+                if ((embedded.LoDMask & 1) != 0)
+                {
+                    AddMesh(embedded.Mesh);
+                }
+            }
+
+            foreach (var reference in propModel.GetReferenceMeshNamesAndLoD())
+            {
+                if ((reference.LoDMask & 1) == 0)
+                {
+                    continue;
+                }
+
+                using var meshResource = FileLoader.LoadFileCompiled(reference.MeshName);
+                if (meshResource?.DataBlock is not Mesh referenceMesh)
+                {
+                    continue;
+                }
+
+                propModel.SetExternalMeshData(referenceMesh);
+                AddMesh(referenceMesh);
+            }
+
+            return positions.Count > 0 ? (positions.ToArray(), triangles.ToArray(), drawCalls) : null;
+        }
+
+        static bool IsPhysicsMesh(CMapMesh mesh)
+            => mesh.MeshData.Materials.Count > 0 && mesh.MeshData.Materials.All(m =>
+                m.Contains("/_vrf/physics_surfaces/", StringComparison.Ordinal) || m.StartsWith("materials/tools/", StringComparison.Ordinal));
+
+        // inside the polygon in the plane, or within the tolerance of one of its edges
+        static bool PointInFace(Vector3 point, Vector3[] corners, Vector3 normal, float tolerance)
+        {
+            var absNormal = Vector3.Abs(normal);
+            var (u, v) = absNormal.X >= absNormal.Y && absNormal.X >= absNormal.Z ? (1, 2) : absNormal.Y >= absNormal.Z ? (0, 2) : (0, 1);
+
+            var inside = false;
+            var pu = point[u];
+            var pv = point[v];
+
+            for (int i = 0, j = corners.Length - 1; i < corners.Length; j = i++)
+            {
+                var ci = corners[i];
+                var cj = corners[j];
+
+                if ((ci[v] > pv) != (cj[v] > pv) && pu < (cj[u] - ci[u]) * (pv - ci[v]) / (cj[v] - ci[v]) + ci[u])
+                {
+                    inside = !inside;
+                }
+
+                // distance to the edge
+                var edge = cj - ci;
+                var along = Math.Clamp(Vector3.Dot(point - ci, edge) / MathF.Max(edge.LengthSquared(), 1e-12f), 0f, 1f);
+
+                if (Vector3.Distance(point, ci + edge * along) <= tolerance)
+                {
+                    return true;
+                }
+            }
+
+            return inside;
+        }
     }
 
     /// <summary>
@@ -913,10 +1575,7 @@ public sealed class MapExtract
 
             if (shape.Meshes.Length > 0)
             {
-                physicsMeshBuilder.Mesh.MergeCoincidentOpenEdges(HammerMeshWeldDistance);
-                physicsMeshBuilder.Mesh.MergeVerticesWithinDistance(HammerMeshWeldDistance);
-
-                foreach (var meshData in physicsMeshBuilder.GenerateMeshes())
+                foreach (var meshData in physicsMeshBuilder.GenerateMeshes(HammerMeshWeldDistance))
                 {
                     if (meshData.FaceEdgeIndices.Count == 0)
                     {
@@ -1084,6 +1743,13 @@ public sealed class MapExtract
 
                 var model = (Model)mesh.DataBlock;
 
+                // overlays are not normal hammer geo, their projected geometry is collected and reconstructed at the end
+                if (modelName!.Contains("_mesh_overlay", StringComparison.Ordinal))
+                {
+                    AddOverlayGeometry(model, mesh, objectTransform, sceneObject, objectFlags);
+                    return;
+                }
+
                 // Source 2 bakes a mesh's scale into its vertices, so bake it here and keep only origin/angles on the node.
                 var meshOrigin = Vector3.Zero;
                 var meshAngles = new Datamodel.QAngle();
@@ -1195,6 +1861,11 @@ public sealed class MapExtract
                 : [];
 
             var aggregateHasTransforms = fragmentTransforms.Count > 0;
+
+            if (aggregateHasTransforms)
+            {
+                InstancedAggregateModels.Add(modelName);
+            }
 
             FolderExtractFilter.Add(modelName);
             using var modelRes = FileLoader.LoadFileCompiled(modelName);
