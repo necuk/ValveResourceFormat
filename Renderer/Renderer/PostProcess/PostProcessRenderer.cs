@@ -45,6 +45,13 @@ namespace ValveResourceFormat.Renderer.PostProcess
         /// <summary>Gets or sets a manually overridden exposure value; set to -1 to use auto-exposure.</summary>
         public float CustomExposure { get; set; } = -1;
 
+        /// <summary>
+        /// When set, pins the blue-noise dither phase the engine-resolve path uses to a captured
+        /// per-frame value (the engine's own CB0 offset). Written by the headless render driver's
+        /// <c>--dither-offset</c>; null draws a fresh random phase per frame.
+        /// </summary>
+        public Vector2? DitherOffsetOverride { get; set; }
+
         /// <summary>Gets or sets the display gamma, the game's brightness setting. 2.2 is identity; lower is brighter.</summary>
         public float FullScreenGamma { get; set; } = 2.2f;
 
@@ -218,9 +225,12 @@ namespace ValveResourceFormat.Renderer.PostProcess
             if (engineResolveSemantics)
             {
                 // Engine resolve law (tools/vrf/engine_resolve_forward.py): the blue-noise dither is a
-                // fixed per-frame CB0 vector, read as UNORM, amplitude 4/255 at scale 1/256, added BEFORE
-                // the RTZ R11G11B10 quantization. dust2 capture values: offset (0.552585065, 0.26936838).
-                shader.SetUniform("g_vBlueNoiseDitherParams", new Vector4(0.552585065f, 0.26936838f, 1.0f / 256.0f, 4.0f / 255.0f));
+                // per-frame CB0 vector, read as UNORM, amplitude 4/255 at scale 1/256, added BEFORE
+                // the RTZ R11G11B10 quantization. The offset is per-frame engine state: the headless
+                // driver pins the capture's value via DitherOffsetOverride; unpinned renders draw a
+                // fresh random phase (renders are then not reproducible, same as the legacy path).
+                var engineDither = DitherOffsetOverride ?? new Vector2(random.NextSingle(), random.NextSingle());
+                shader.SetUniform("g_vBlueNoiseDitherParams", new Vector4(engineDither, 1.0f / 256.0f, 4.0f / 255.0f));
             }
             else
             {

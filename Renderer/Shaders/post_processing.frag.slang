@@ -136,15 +136,15 @@ void main()
             // E = the frame's adapted exposure (g_flToneMapScalarLinear), w = 4/255,
             // noise uv = floor((pix * scale + offset) * 256) mod 256, point-sampled.
             vec3 exposed = clamp(vColor.rgb, vec3(0.0), vec3(65504.0)) * flExposure; // model: y = clip(msaa,0,65504)*E
-            vec3 packed = exposed / (1.0 + max(exposed.r, max(exposed.g, exposed.b)));
+            vec3 packedColor = exposed / (1.0 + max(exposed.r, max(exposed.g, exposed.b)));
 
             ivec2 noiseCoord = ivec2(mod(floor((floor(gl_FragCoord.xy - vec2(0.5)) * g_vBlueNoiseDitherParams.z + g_vBlueNoiseDitherParams.xy) * 256.0), 256.0));
             vec3 blueNoise = texelFetch(g_tBlueNoise, noiseCoord, 0).rgb; // UNORM read, no sRGB decode
-            packed = clamp(packed + (blueNoise - 0.5) * g_vBlueNoiseDitherParams.w, 0.0, 0.99);
+            packedColor = clamp(packedColor + (blueNoise - 0.5) * g_vBlueNoiseDitherParams.w, 0.0, 0.99);
 
             // The R11G11B10 imageStore truncates (round-toward-zero); decode reproduces the hardware
             // read back, then the Karis unpack (TONEMAPSPACE=2) runs on the QUANTIZED value.
-            vec3 stored = DecodeR11G11B10(EncodeR11G11B10RTZ(packed));
+            vec3 stored = DecodeR11G11B10(EncodeR11G11B10RTZ(packedColor));
             vColor.rgb = stored / (1.0 - max(stored.r, max(stored.g, stored.b)));
         }
         else
