@@ -2,7 +2,13 @@
 
 #include "common/utils.slang"
 
+#define D_MSAA_SAMPLES 1
+
+#if D_MSAA_SAMPLES > 1
+layout(binding = 0) uniform sampler2DMS inputImage;
+#else
 layout(binding = 0) uniform sampler2D inputImage;
+#endif
 
 // Global histogram buffer (256 bins)
 layout(binding = 2, std430) buffer HistogramBuffer
@@ -31,7 +37,11 @@ void main()
     uvec3 globalID = gl_GlobalInvocationID;
     uint bin       = gl_LocalInvocationIndex;
 
+#if D_MSAA_SAMPLES > 1
+    uvec2 imageResolution = uvec2(textureSize(inputImage).xy);
+#else
     uvec2 imageResolution = uvec2(textureSize(inputImage, 0).xy);
+#endif
 
 #if D_HISTOGRAM_MODE == 0
 
@@ -41,8 +51,17 @@ void main()
 
     if (globalID.x < imageResolution.x && globalID.y < imageResolution.y)
     {
+#if D_MSAA_SAMPLES > 1
+        float luma = 0.0;
+        for (int sampleIndex = 0; sampleIndex < D_MSAA_SAMPLES; sampleIndex++)
+        {
+            luma += GetLuma(texelFetch(inputImage, ivec2(globalID.xy), sampleIndex).rgb);
+        }
+        luma /= float(D_MSAA_SAMPLES);
+#else
         vec3 color = texelFetch(inputImage, ivec2(globalID.xy), 0).rgb;
         float luma = GetLuma(color);
+#endif
 
         // log2(0) = undefined
         luma = max(luma, 0.005);

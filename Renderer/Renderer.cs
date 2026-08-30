@@ -167,6 +167,7 @@ public class Renderer
     public bool ForceResolveSceneDepth { get; set; }
 
     private readonly Shader[] histogramShaders = new Shader[2];
+    private Shader[]? histogramMsaaShaders;
     private readonly StorageBuffer[] histogramBuffers = new StorageBuffer[2];
 
     // Injected
@@ -992,15 +993,30 @@ public class Renderer
         histogramBuffers[1].BindBufferBase();
 
         var inputTex = ResolvedSceneColor;
+        var histogramBuildShader = histogramShaders[0];
+        var histogramReduceShader = histogramShaders[1];
+        var msaaSamples = renderContext.Framebuffer.NumSamples;
+        if (msaaSamples > 0)
+        {
+            Debug.Assert(renderContext.Framebuffer.Color != null);
+            inputTex = renderContext.Framebuffer.Color;
+            histogramMsaaShaders ??= new Shader[]
+            {
+                renderContext.Scene.RendererContext.ShaderLoader.LoadShader("histogram", ("D_MSAA_SAMPLES", (byte)msaaSamples)),
+                renderContext.Scene.RendererContext.ShaderLoader.LoadShader("histogram", ("D_HISTOGRAM_MODE", 1), ("D_MSAA_SAMPLES", (byte)msaaSamples)),
+            };
+            histogramBuildShader = histogramMsaaShaders[0];
+            histogramReduceShader = histogramMsaaShaders[1];
+        }
 
         // Build histogram
         var groupsX = Math.Max(1, (width + 15) / 16);
         var groupsY = Math.Max(1, (height + 15) / 16);
-        Dispatch(histogramShaders[0], inputTex, groupsX, groupsY);
+        Dispatch(histogramBuildShader, inputTex, groupsX, groupsY);
         GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit);
 
         // Reduce histogram
-        Dispatch(histogramShaders[1], inputTex, 1, 1); // local_size_x = 256
+        Dispatch(histogramReduceShader, inputTex, 1, 1); // local_size_x = 256
 
         GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit | MemoryBarrierFlags.BufferUpdateBarrierBit);
 
