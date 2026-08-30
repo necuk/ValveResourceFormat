@@ -167,8 +167,14 @@ public class Renderer
     public bool ForceResolveSceneDepth { get; set; }
 
     private readonly Shader[] histogramShaders = new Shader[2];
-    private Shader[]? histogramMsaaShaders;
     private readonly StorageBuffer[] histogramBuffers = new StorageBuffer[2];
+
+    /// <summary>
+    /// Packed exposed resolve target binned by the auto-exposure histogram: the engine's exposure
+    /// chain resolves FIRST (expose inside the pack, Karis, dither, RTZ R11G11B10) and only then
+    /// bins — the raw HDR MSAA is never seen by the engine's histogram.
+    /// </summary>
+    private RenderTexture? packedExposedScene;
 
     // Injected
     /// <summary>
@@ -999,14 +1005,22 @@ public class Renderer
         if (msaaSamples > 0)
         {
             Debug.Assert(renderContext.Framebuffer.Color != null);
-            inputTex = renderContext.Framebuffer.Color;
-            histogramMsaaShaders ??= new Shader[]
+
+            // Engine exposure-chain order: resolve FIRST (expose inside the pack, Karis, dither,
+            // RTZ R11G11B10 — RenderExposedScene), THEN bin the packed exposed texture. The engine's
+            // histogram samples its R11G11B10 resolve target; it never sees the raw HDR MSAA this
+            // code used to bin (the old per-sample-mean MSAA histogram path is exactly that wrong law).
+            if (packedExposedScene == null || packedExposedScene.Width != width || packedExposedScene.Height != height)
             {
-                renderContext.Scene.RendererContext.ShaderLoader.LoadShader("histogram", ("D_MSAA_SAMPLES", (byte)msaaSamples)),
-                renderContext.Scene.RendererContext.ShaderLoader.LoadShader("histogram", ("D_HISTOGRAM_MODE", 1), ("D_MSAA_SAMPLES", (byte)msaaSamples)),
-            };
-            histogramBuildShader = histogramMsaaShaders[0];
-            histogramReduceShader = histogramMsaaShaders[1];
+                packedExposedScene?.Delete();
+                packedExposedScene = RenderTexture.Create(width, height, ImageFormat.RGBA16161616F, nameof(packedExposedScene));
+                packedExposedScene.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
+                packedExposedScene.SetWrapMode(RsTextureAddressMode.Clamp);
+            }
+
+            // flipY must track the frame's own PostprocessRender argument (headless driver: false).
+            Postprocess.RenderExposedScene(renderContext.Framebuffer, packedExposedScene, flipY: false);
+            inputTex = packedExposedScene;
         }
 
         // Build histogram
@@ -1229,6 +1243,7 @@ public class Renderer
         PerfStats?.Dispose();
         ResolvedSceneColor?.Delete();
         ResolvedSceneDepth?.Delete();
+        packedExposedScene?.Delete();
         OutlineMaskBuffer?.Delete();
         ShadowDepthBuffer?.Delete();
         BarnLightShadowBuffer?.Delete();

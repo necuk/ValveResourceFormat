@@ -12,6 +12,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
     {
         private readonly RendererContext RendererContext;
         private Shader? shaderMsaaResolve;
+        private Shader? shaderMsaaResolveExposed;
         private Shader? shaderDepthResolve;
         private Shader? shaderPostProcess;
         private Shader? shaderPostProcessBloom;
@@ -104,6 +105,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
         {
             var msaa = (byte)msaaSamples;
             shaderMsaaResolve = RendererContext.ShaderLoader.LoadShader("msaa_resolve", ("D_MSAA_SAMPLES", msaa));
+            shaderMsaaResolveExposed = RendererContext.ShaderLoader.LoadShader("msaa_resolve", ("D_MSAA_SAMPLES", msaa), ("D_EXPOSURE", 1));
             shaderDepthResolve = RendererContext.ShaderLoader.LoadShader("depth_resolve", ("D_MSAA_SAMPLES", msaa));
             shaderPostProcess = RendererContext.ShaderLoader.LoadShader("post_processing", ("D_BLOOM", 0));
             shaderPostProcessBloom = RendererContext.ShaderLoader.LoadShader("post_processing", ("D_BLOOM", 1));
@@ -145,6 +147,39 @@ namespace ValveResourceFormat.Renderer.PostProcess
                 GL.DispatchCompute(groupsX, groupsY, 1);
             }
 
+            GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit | MemoryBarrierFlags.TextureFetchBarrierBit);
+        }
+
+        /// <summary>
+        /// Renders the engine's packed exposed scene into <paramref name="dest"/>: the MSAA color is
+        /// exposed by this frame's tonemap scalar (the engine resolves with the PREVIOUS frame's
+        /// adapted exposure — single-frame settle is the settled-state equivalent), Karis-packed,
+        /// blue-noise dithered and RTZ-R11G11B10-quantized exactly like the engine's exposure-chain
+        /// resolve (tools/vrf/engine_resolve_forward.py). The result is consumed ONLY by the
+        /// auto-exposure histogram; the visible tonemap path keeps its own resolve.
+        /// </summary>
+        public void RenderExposedScene(Framebuffer source, RenderTexture dest, bool flipY)
+        {
+            Debug.Assert(shaderMsaaResolveExposed != null);
+            Debug.Assert(BlueNoise != null);
+
+            var groupsX = (dest.Width + 7) / 8;
+            var groupsY = (dest.Height + 7) / 8;
+
+            shaderMsaaResolveExposed.Use();
+            shaderMsaaResolveExposed.SetTexture(0, "g_tSourceMsaa", source.Color);
+            shaderMsaaResolveExposed.SetTexture(2, "g_tBlueNoise", BlueNoise);
+            shaderMsaaResolveExposed.SetUniform("g_bFlipY", flipY);
+            shaderMsaaResolveExposed.SetUniform("g_flToneMapScalarLinear", TonemapScalar);
+            shaderMsaaResolveExposed.SetUniform("g_flExposureBiasScaleFactor", MathF.Pow(2.0f, State.TonemapSettings.ExposureBias));
+
+            // Engine dither law: per-frame CB0 vector, read as UNORM, amplitude 4/255 at scale
+            // 1/256, added BEFORE the RTZ quantization. Same pinning rules as the tonemap path.
+            var engineDither = DitherOffsetOverride ?? new Vector2(random.NextSingle(), random.NextSingle());
+            shaderMsaaResolveExposed.SetUniform("g_vBlueNoiseDitherParams", new Vector4(engineDither, 1.0f / 256.0f, 4.0f / 255.0f));
+
+            GL.BindImageTexture(1, dest.Handle, 0, false, 0, TextureAccess.WriteOnly, SizedInternalFormat.Rgba16f);
+            GL.DispatchCompute(groupsX, groupsY, 1);
             GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit | MemoryBarrierFlags.TextureFetchBarrierBit);
         }
 
