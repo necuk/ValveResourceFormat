@@ -76,6 +76,7 @@ uniform int F_DECAL_BLEND_MODE; // csgo_character, csgo_complex, csgo_vertexlitg
 // SHADING
 #define F_SPECULAR 0 // most shaders
 #define F_SPECULAR_INDIRECT 0 // csgo_lightmapped_4wayblend, csgo_lightmappedgeneric, csgo_projected_decals, csgo_vertexlitgeneric
+#define F_SPECULAR_DIRECT 0
 #define F_ANISOTROPIC_GLOSS 0 // csgo_character, csgo_complex, csgo_customglove, csgo_textile_layer, vr_complex, vr_standard
 #define F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP 0 // only optional in HLA (vr_complex)
 #define F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS 0 // csgo_character
@@ -134,7 +135,7 @@ uniform sampler2D g_tTintMask;
 
 #if (GameVfx_vr_complex != 0)
     #define IBL F_SPECULAR
-#elif defined(csgo_generic_vfx_common)
+#elif defined(csgo_generic_vfx_common) || (GameVfx_csgo_lightmapped_4wayblend != 0)
     #define IBL F_SPECULAR_INDIRECT
 #elif (GameVfx_generic != 0)
     #define IBL 0
@@ -754,6 +755,9 @@ void main()
     ApplyAmbientOcclusion(lighting, mat);
 
     vec3 diffuseLighting = lighting.DiffuseDirect + lighting.DiffuseIndirect;
+#if (defined(csgo_generic_vfx_common) || (GameVfx_csgo_lightmapped_4wayblend != 0)) && (F_SPECULAR_DIRECT == 0)
+    lighting.SpecularDirect = vec3(0.0);
+#endif
     vec3 specularLighting = lighting.SpecularDirect + lighting.SpecularIndirect;
 
     if (F_NO_SPECULAR_AT_FULL_ROUGHNESS == 1)

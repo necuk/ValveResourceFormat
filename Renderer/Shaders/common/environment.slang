@@ -42,6 +42,9 @@ layout(std140, binding = 2) uniform EnvMapArray
 
 int g_nEnvMapsIterated = 0;
 
+float g_flEnvLodOverride = -1.0;
+float g_flEnvRoughnessSquaredOverride = -1.0;
+
 // Filled by GetEnvironmentNoBRDF: the blended L1 luminance harmonic of the probes that were
 // sampled, weighted exactly as their radiance was. It evaluates to a radiance, so there is no
 // value here that means "leave reflections alone"; the zero below instead marks it unfilled,
@@ -213,13 +216,17 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float reflectionCorrectionAm
 
     // Roughness rather than the perceptual remap, so that a caller raising mat.Roughness to 1
     // for the diffuse lookup lands exactly on the normal.
-    float roughnessSquared = pow2(max(mat.Roughness.x, mat.Roughness.y));
+    float roughnessSquared = (g_flEnvRoughnessSquaredOverride >= 0.0)
+        ? g_flEnvRoughnessSquaredOverride
+        : pow2(max(mat.Roughness.x, mat.Roughness.y));
     float smoothness = saturate(1.0 - roughnessSquared);
     float dominantDirection = smoothness * (sqrt(smoothness) + roughnessSquared);
 
     R = normalize(mix(reflectionNormal, R, mix(1.0, dominantDirection, reflectionCorrectionAmount)));
 
-    float lod = GetEnvMapLOD(sqrt(perceptualRoughness), R);
+    float lod = (g_flEnvLodOverride >= 0.0)
+        ? g_flEnvLodOverride
+        : GetEnvMapLOD(sqrt(perceptualRoughness), R);
 
     vec3 envMap = vec3(0.0);
 

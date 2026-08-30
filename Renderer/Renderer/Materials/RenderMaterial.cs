@@ -284,7 +284,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
             foreach (var (name, value) in material.FloatParams)
             {
-                FloatParams[name] = value;
+                FloatParams[name] = name is "g_flBevelStrength2" or "g_flBevelStrength3" ? value * 0.01f : value;
             }
 
             foreach (var (name, value) in material.VectorParams)

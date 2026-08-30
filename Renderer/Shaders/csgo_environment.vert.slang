@@ -68,7 +68,7 @@ uniform vec2 g_vTexCoordScale1 = vec2(1.0);
     uniform vec2 g_vTexCoordOffset2 = vec2(0.0);
     uniform vec2 g_vTexCoordScale2 = vec2(1.0);
 
-    uniform float g_flBlendSoftness2 = 0.01;
+    uniform float g_flBlendSoftness2 = 0.01; // vfx golden default 0.01 (m_flDefault)
 
     uniform int F_BLEND_BY_FACING_DIRECTION_2; // 0="None", 1="Geometric", 2="Normal Map"
     #define bGeoBlendByFacingDirection2 F_BLEND_BY_FACING_DIRECTION_2 > 0
@@ -257,16 +257,8 @@ void main()
             vColorBlendValues.x *= flDirectionMultiplier;
         }
 
-        float flSoftness = g_flBlendSoftness2;
 
         #if (F_ENABLE_LAYER_3 == 1)
-            if (vColorBlendValues.x < 0.001)
-            {
-                flSoftness = g_flBlendSoftness3;
-            }
-
-            flSoftness = mix(flSoftness, g_flBlendSoftness3, vColorBlendValues.y);
-
             if (bGeoBlendByFacingDirection3 && bVertexBlendByFacingDirection3)
             {
                 float flDirectionMultiplier = fma(dot(g_vFacingDirectionNormalizedSafe3.xyz, vNormalOut.xyz), 0.5, 0.5);
@@ -276,7 +268,6 @@ void main()
             }
         #endif
 
-        vColorBlendValues.a = clamp(vColorBlendValues.a + flSoftness, 0.001, 1.0);
     #else
         vColorBlendValues.a = clamp(vColorBlendValues.a, 0.001, 1.0);
     #endif
