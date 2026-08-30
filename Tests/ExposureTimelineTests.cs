@@ -5,7 +5,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using NUnit.Framework;
+using System.Threading.Tasks;
 using ValveResourceFormat.Renderer.PostProcess;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 
@@ -19,7 +19,6 @@ namespace Tests
     /// These tests describe what the code currently does. They deliberately do not
     /// assert what the engine does — no engine oracle is wired in here.
     /// </summary>
-    [TestFixture]
     public class ExposureTimelineTests
     {
         private const string ScenarioFile = "exposure_scenarios.json";
@@ -29,7 +28,7 @@ namespace Tests
 
         private sealed record Scenario(string Name, string Description, ExposureSettings Settings, float ExposureBias, IReadOnlyList<ScenarioFrame> Frames);
 
-        private static string ScenarioPath => Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", ScenarioFile);
+        private static string ScenarioPath => Path.Combine(TestContext.TestDirectory!, "Files", ScenarioFile);
 
         private static ExposureSettings ReadSettings(JsonElement element, ExposureSettings fallback)
         {
@@ -55,14 +54,21 @@ namespace Tests
         private static (IReadOnlyList<Scenario> Scenarios, string Sha256) LoadScenarios()
         {
             var path = ScenarioPath;
-            Assert.That(File.Exists(path), Is.True, $"scenario corpus missing: {path}");
+            if (!File.Exists(path))
+            {
+                throw new FileNotFoundException($"scenario corpus missing: {path}", path);
+            }
 
             var bytes = File.ReadAllBytes(path);
             var sha = Convert.ToHexStringLower(SHA256.HashData(bytes));
 
             using var document = JsonDocument.Parse(bytes);
             var root = document.RootElement;
-            Assert.That(root.GetProperty("schema").GetString(), Is.EqualTo("vrf_exposure.scenarios.v1"));
+            var schema = root.GetProperty("schema").GetString();
+            if (schema != "vrf_exposure.scenarios.v1")
+            {
+                throw new InvalidDataException($"scenario corpus schema is {schema}, expected vrf_exposure.scenarios.v1");
+            }
 
             var defaults = new ExposureSettings();
             var scenarios = new List<Scenario>();
@@ -119,10 +125,10 @@ namespace Tests
         /// If this fails, every timeline emitted by this fixture is invalid.
         /// </summary>
         [Test]
-        public void MirrorMatchesRenderer()
+        public async Task MirrorMatchesRenderer()
         {
             var (scenarios, _) = LoadScenarios();
-            Assert.That(scenarios, Is.Not.Empty);
+            await Assert.That(scenarios).IsNotEmpty();
 
             foreach (var scenario in scenarios)
             {
@@ -141,19 +147,25 @@ namespace Tests
                     var expected = mirrored[i];
                     var where = $"{scenario.Name}[{i}]";
 
-                    Assert.That(renderer.TonemapScalar, Is.EqualTo(expected.TonemapScalar).Using<float>(BitExact), $"{where} TonemapScalar");
-                    Assert.That(renderer.CurrentExposure, Is.EqualTo(expected.CurrentExposure).Using<float>(BitExact), $"{where} CurrentExposure");
-                    Assert.That(renderer.TargetExposure, Is.EqualTo(expected.TargetExposure).Using<float>(BitExact), $"{where} TargetExposure");
-                    Assert.That(renderer.ExposureHistory, Is.EqualTo(expected.History).AsCollection, $"{where} ExposureHistory");
+                    await AssertBitExact(renderer.TonemapScalar, expected.TonemapScalar, $"{where} TonemapScalar");
+                    await AssertBitExact(renderer.CurrentExposure, expected.CurrentExposure, $"{where} CurrentExposure");
+                    await AssertBitExact(renderer.TargetExposure, expected.TargetExposure, $"{where} TargetExposure");
+
+                    await Assert.That(renderer.ExposureHistory.Count).IsEqualTo(expected.History.Length)
+                        .Because($"{where} ExposureHistory length");
+                    for (var h = 0; h < expected.History.Length; h++)
+                    {
+                        await AssertBitExact(renderer.ExposureHistory[h], expected.History[h], $"{where} ExposureHistory[{h}]");
+                    }
                 }
             }
         }
 
-        private static int BitExact(float a, float b)
+        private static async Task AssertBitExact(float actual, float expected, string where)
         {
-            return BitConverter.SingleToInt32Bits(a) == BitConverter.SingleToInt32Bits(b)
-                ? 0
-                : a.CompareTo(b) is var c && c != 0 ? c : 1;
+            await Assert.That(BitConverter.SingleToInt32Bits(actual))
+                .IsEqualTo(BitConverter.SingleToInt32Bits(expected))
+                .Because($"{where}: actual {actual} vs expected {expected}");
         }
 
         /// <summary>
@@ -161,12 +173,12 @@ namespace Tests
         /// <c>tools/vrf_exposure_timeline_compare.py</c> as the VRF candidate side.
         /// </summary>
         [Test]
-        public void EmitStageTimelines()
+        public async Task EmitStageTimelines()
         {
             var (scenarios, corpusSha) = LoadScenarios();
 
             var outDir = Environment.GetEnvironmentVariable("VRF_EXPOSURE_TIMELINE_OUT")
-                ?? Path.Combine(TestContext.CurrentContext.TestDirectory, "exposure_timelines");
+                ?? Path.Combine(TestContext.TestDirectory!, "exposure_timelines");
             Directory.CreateDirectory(outDir);
 
             var vrfCommit = Environment.GetEnvironmentVariable("VRF_EXPOSURE_VRF_COMMIT") ?? "unknown";
@@ -176,18 +188,24 @@ namespace Tests
                 var records = RunMirror(scenario);
                 var path = Path.Combine(outDir, $"{scenario.Name}.vrf.jsonl");
 
-                using var stream = File.Create(path);
-                using var writer = new StreamWriter(stream, new UTF8Encoding(false));
-
-                for (var i = 0; i < records.Count; i++)
+                var stream = File.Create(path);
+                await using (stream.ConfigureAwait(false))
                 {
-                    var settings = scenario.Frames[i].Settings ?? scenario.Settings;
-                    writer.WriteLine(SerializeFrame(records[i], scenario, settings, corpusSha, vrfCommit));
+                    var writer = new StreamWriter(stream, new UTF8Encoding(false));
+                    await using (writer.ConfigureAwait(false))
+                    {
+                        for (var i = 0; i < records.Count; i++)
+                        {
+                            var settings = scenario.Frames[i].Settings ?? scenario.Settings;
+                            await writer.WriteLineAsync(
+                                SerializeFrame(records[i], scenario, settings, corpusSha, vrfCommit));
+                        }
+                    }
                 }
             }
 
-            TestContext.Out.WriteLine($"exposure timelines written to {outDir}");
-            Assert.That(Directory.GetFiles(outDir, "*.vrf.jsonl"), Has.Length.EqualTo(scenarios.Count));
+            Console.WriteLine($"exposure timelines written to {outDir}");
+            await Assert.That(Directory.GetFiles(outDir, "*.vrf.jsonl").Length).IsEqualTo(scenarios.Count);
         }
 
         private static string Num(float value)
@@ -305,7 +323,7 @@ namespace Tests
         }
 
         [Test]
-        public void HistoryWeightsAreVShapedAndSumToFive()
+        public async Task HistoryWeightsAreVShapedAndSumToFive()
         {
             var weights = new float[10];
             var total = 0.0f;
@@ -318,18 +336,16 @@ namespace Tests
 
             // The window is an inverted triangle: the oldest sample carries the most weight,
             // the middle sample carries none, and the newest carries 0.8.
-            Assert.Multiple(() =>
-            {
-                Assert.That(weights[0], Is.EqualTo(1.0f).Within(1e-6f), "oldest sample weight");
-                Assert.That(weights[5], Is.EqualTo(0.0f).Within(1e-6f), "middle sample weight");
-                Assert.That(weights[9], Is.EqualTo(0.8f).Within(1e-6f), "newest sample weight");
-                Assert.That(total, Is.EqualTo(5.0f).Within(1e-6f), "total weight");
-                Assert.That(weights[0], Is.GreaterThan(weights[9]), "oldest outweighs newest");
-            });
+            await Assert.That(weights[0]).IsEqualTo(1.0f).Within(1e-6f).Because("oldest sample weight");
+            await Assert.That(weights[5]).IsEqualTo(0.0f).Within(1e-6f).Because("middle sample weight");
+            await Assert.That(weights[9]).IsEqualTo(0.8f).Within(1e-6f).Because("newest sample weight");
+            await Assert.That(total).IsEqualTo(5.0f).Within(1e-6f).Because("total weight");
+            await Assert.That(weights[0]).IsGreaterThan(weights[9]).Because("oldest outweighs newest");
+        
         }
 
         [Test]
-        public void FirstNineFramesBypassTheHistoryWindow()
+        public async Task FirstNineFramesBypassTheHistoryWindow()
         {
             // ExposureMax is raised past the tested range so the clamp does not
             // confound the window switch this test is about.
@@ -340,9 +356,9 @@ namespace Tests
                 renderer.AverageLuminance = 0.18f / frame;
                 renderer.CalculateTonemapScalar(1.0f / 60.0f);
 
-                Assert.That(renderer.ExposureHistory, Has.Count.EqualTo(frame));
+                await Assert.That(renderer.ExposureHistory.Count).IsEqualTo(frame);
                 // speed-up 0 snaps to target, so TonemapScalar is the clamped raw scalar itself
-                Assert.That(renderer.TargetExposure, Is.EqualTo((float)frame).Within(1e-5f), $"frame {frame}");
+                await Assert.That(renderer.TargetExposure).IsEqualTo((float)frame).Within(1e-5f).Because($"frame {frame}");
             }
 
             // Frame 10 switches to the weighted window and the value changes even though the
@@ -350,7 +366,7 @@ namespace Tests
             renderer.AverageLuminance = 0.18f / 10f;
             renderer.CalculateTonemapScalar(1.0f / 60.0f);
 
-            Assert.That(renderer.ExposureHistory, Has.Count.EqualTo(10));
+            await Assert.That(renderer.ExposureHistory.Count).IsEqualTo(10);
 
             var expectedWeighted = 0.0f;
             for (var i = 0; i < 10; i++)
@@ -359,12 +375,12 @@ namespace Tests
             }
 
             expectedWeighted /= 5.0f;
-            Assert.That(renderer.TargetExposure, Is.EqualTo(expectedWeighted).Within(1e-4f));
-            Assert.That(renderer.TargetExposure, Is.LessThan(10f), "the window lags well behind the newest sample");
+            await Assert.That(renderer.TargetExposure).IsEqualTo(expectedWeighted).Within(1e-4f);
+            await Assert.That(renderer.TargetExposure).IsLessThan(10f).Because("the window lags well behind the newest sample");
         }
 
         [Test]
-        public void HistoryEvictsOldestAndNeverExceedsTen()
+        public async Task HistoryEvictsOldestAndNeverExceedsTen()
         {
             var renderer = NewRenderer(Auto(max: 100.0f, up: 0.0f));
 
@@ -372,44 +388,44 @@ namespace Tests
             {
                 renderer.AverageLuminance = 0.18f / (frame + 1);
                 renderer.CalculateTonemapScalar(1.0f / 60.0f);
-                Assert.That(renderer.ExposureHistory, Has.Count.LessThanOrEqualTo(10));
+                await Assert.That(renderer.ExposureHistory.Count).IsLessThanOrEqualTo(10);
             }
 
-            Assert.That(renderer.ExposureHistory, Has.Count.EqualTo(10));
-            Assert.That(renderer.ExposureHistory[9], Is.EqualTo(25f).Within(1e-4f), "newest sample is last");
-            Assert.That(renderer.ExposureHistory[0], Is.EqualTo(16f).Within(1e-4f), "oldest retained sample");
+            await Assert.That(renderer.ExposureHistory.Count).IsEqualTo(10);
+            await Assert.That(renderer.ExposureHistory[9]).IsEqualTo(25f).Within(1e-4f).Because("newest sample is last");
+            await Assert.That(renderer.ExposureHistory[0]).IsEqualTo(16f).Within(1e-4f).Because("oldest retained sample");
         }
 
         [Test]
-        public void ClampBoundsTheTargetInBothDirections()
+        public async Task ClampBoundsTheTargetInBothDirections()
         {
             var renderer = NewRenderer(Auto(min: 0.5f, max: 2.0f, up: 0.0f));
 
             renderer.AverageLuminance = 0.18f / 100f; // raw scalar 100
             renderer.CalculateTonemapScalar(1.0f / 60.0f);
-            Assert.That(renderer.TargetExposure, Is.EqualTo(2.0f));
+            await Assert.That(renderer.TargetExposure).IsEqualTo(2.0f);
 
             renderer.AverageLuminance = 0.18f / 0.001f; // raw scalar 0.001
             renderer.CalculateTonemapScalar(1.0f / 60.0f);
-            Assert.That(renderer.TargetExposure, Is.EqualTo(0.5f));
+            await Assert.That(renderer.TargetExposure).IsEqualTo(0.5f);
         }
 
         [Test]
-        public void SpeedUpZeroSnapsRegardlessOfDirection()
+        public async Task SpeedUpZeroSnapsRegardlessOfDirection()
         {
             var renderer = NewRenderer(Auto(up: 0.0f, down: 5.0f));
 
             renderer.AverageLuminance = 0.18f / 4f;
             renderer.CalculateTonemapScalar(1.0f / 60.0f);
-            Assert.That(renderer.CurrentExposure, Is.EqualTo(4.0f).Within(1e-5f), "snap up");
+            await Assert.That(renderer.CurrentExposure).IsEqualTo(4.0f).Within(1e-5f).Because("snap up");
 
             renderer.AverageLuminance = 0.18f / 0.5f;
             renderer.CalculateTonemapScalar(1.0f / 60.0f);
-            Assert.That(renderer.CurrentExposure, Is.EqualTo(0.5f).Within(1e-5f), "snap down");
+            await Assert.That(renderer.CurrentExposure).IsEqualTo(0.5f).Within(1e-5f).Because("snap down");
         }
 
         [Test]
-        public void AdaptationIsDirectionallyDistinctForAsymmetricSpeeds()
+        public async Task AdaptationIsDirectionallyDistinctForAsymmetricSpeeds()
         {
             const float dt = 1.0f / 60.0f;
 
@@ -424,15 +440,13 @@ namespace Tests
             var upStep = MathF.Log2(up.CurrentExposure) - 0.0f;
             var downStep = 0.0f - MathF.Log2(down.CurrentExposure);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(upStep, Is.EqualTo(4.0f * dt).Within(1e-5f), "up step is speedUp * dt in log2 space");
-                Assert.That(downStep, Is.EqualTo(0.25f * dt).Within(1e-5f), "down step is speedDown * dt in log2 space");
-            });
+            await Assert.That(upStep).IsEqualTo(4.0f * dt).Within(1e-5f).Because("up step is speedUp * dt in log2 space");
+            await Assert.That(downStep).IsEqualTo(0.25f * dt).Within(1e-5f).Because("down step is speedDown * dt in log2 space");
+        
         }
 
         [Test]
-        public void SmoothingRangeDampsSmallLogDifferences()
+        public async Task SmoothingRangeDampsSmallLogDifferences()
         {
             const float dt = 1.0f;
 
@@ -441,77 +455,72 @@ namespace Tests
             renderer.AverageLuminance = 0.18f / 2f;
             renderer.CalculateTonemapScalar(dt);
 
-            Assert.That(MathF.Log2(renderer.CurrentExposure), Is.EqualTo(0.5f).Within(1e-5f),
-                "damped rate is half the log2 distance, not the configured speed");
+            await Assert.That(MathF.Log2(renderer.CurrentExposure)).IsEqualTo(0.5f).Within(1e-5f).Because("damped rate is half the log2 distance, not the configured speed");
         }
 
         [Test]
-        public void AdaptationNeverOvershootsTheTarget()
+        public async Task AdaptationNeverOvershootsTheTarget()
         {
             var renderer = NewRenderer(Auto(up: 100f, down: 100f, smoothing: 0.0f));
 
             renderer.AverageLuminance = 0.18f / 4f;
             renderer.CalculateTonemapScalar(1.0f);
-            Assert.That(renderer.CurrentExposure, Is.EqualTo(4.0f), "clamped exactly onto the target going up");
+            await Assert.That(renderer.CurrentExposure).IsEqualTo(4.0f).Because("clamped exactly onto the target going up");
 
             renderer.AverageLuminance = 0.18f / 0.5f;
             renderer.CalculateTonemapScalar(1.0f);
-            Assert.That(renderer.CurrentExposure, Is.EqualTo(0.5f), "clamped exactly onto the target going down");
+            await Assert.That(renderer.CurrentExposure).IsEqualTo(0.5f).Because("clamped exactly onto the target going down");
         }
 
         [Test]
-        public void ZeroDeltaTimeHoldsUpwardButSnapsDownward()
+        public async Task ZeroDeltaTimeHoldsInBothDirections()
         {
-            // Documented asymmetry: the overshoot guard tests `adaptRate >= 0`, and negating a
-            // zero adaptation rate yields -0.0f, which satisfies `>= 0` under IEEE 754.
-            // The downward branch therefore takes Min(current, target) and collapses onto the
-            // target in a frame that advanced no time at all.
+            // The overshoot guard decides its direction from the pre-deltaTime
+            // adaptation rate, so a zero-length frame holds in BOTH directions
+            // instead of collapsing downward through -0.0f >= 0.
             var upward = NewRenderer(Auto(up: 1.0f, down: 1.0f));
             upward.AverageLuminance = 0.18f / 4f;
             upward.CalculateTonemapScalar(0.0f);
-            Assert.That(upward.CurrentExposure, Is.EqualTo(1.0f), "upward holds across a zero-length frame");
+            await Assert.That(upward.CurrentExposure).IsEqualTo(1.0f).Because("upward holds across a zero-length frame");
 
             var downward = NewRenderer(Auto(up: 1.0f, down: 1.0f));
             downward.AverageLuminance = 0.18f / 0.25f;
             downward.CalculateTonemapScalar(0.0f);
-            Assert.That(downward.CurrentExposure, Is.EqualTo(0.25f), "downward snaps across a zero-length frame");
+            await Assert.That(downward.CurrentExposure).IsEqualTo(1.0f).Because("downward holds across a zero-length frame too");
         }
 
         [Test]
-        public void SpeedDownZeroSnapsThroughTheSameNegativeZeroPath()
+        public async Task SpeedDownZeroSnapsThroughTheSameNegativeZeroPath()
         {
             var renderer = NewRenderer(Auto(up: 1.0f, down: 0.0f));
 
             renderer.AverageLuminance = 0.18f / 0.25f;
             renderer.CalculateTonemapScalar(1.0f / 60.0f);
 
-            Assert.That(renderer.CurrentExposure, Is.EqualTo(0.25f),
-                "a zero downward speed snaps instantly rather than freezing");
+            await Assert.That(renderer.CurrentExposure).IsEqualTo(0.25f).Because("a zero downward speed snaps instantly rather than freezing");
         }
 
         [Test]
-        public void NonFiniteRawScalarReturnsOneInsteadOfHoldingCurrentExposure()
+        public async Task NonFiniteRawScalarReturnsOneInsteadOfHoldingCurrentExposure()
         {
             var renderer = NewRenderer(Auto(up: 0.0f));
 
             renderer.AverageLuminance = 0.18f / 4f;
             renderer.CalculateTonemapScalar(1.0f / 60.0f);
-            Assert.That(renderer.TonemapScalar, Is.EqualTo(4.0f).Within(1e-5f));
+            await Assert.That(renderer.TonemapScalar).IsEqualTo(4.0f).Within(1e-5f);
 
             // A zero average luminance makes the raw scalar infinite.
             renderer.AverageLuminance = 0.0f;
             renderer.CalculateTonemapScalar(1.0f / 60.0f);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(renderer.TonemapScalar, Is.EqualTo(1.0f), "the applied scalar drops to 1.0 for this frame");
-                Assert.That(renderer.CurrentExposure, Is.EqualTo(4.0f).Within(1e-5f), "the smoothed state is left untouched");
-                Assert.That(renderer.ExposureHistory, Has.Count.EqualTo(1), "the bad sample is not pushed into history");
-            });
+            await Assert.That(renderer.TonemapScalar).IsEqualTo(1.0f).Because("the applied scalar drops to 1.0 for this frame");
+            await Assert.That(renderer.CurrentExposure).IsEqualTo(4.0f).Within(1e-5f).Because("the smoothed state is left untouched");
+            await Assert.That(renderer.ExposureHistory.Count).IsEqualTo(1).Because("the bad sample is not pushed into history");
+        
         }
 
         [Test]
-        public void CompensationScalesTheAppliedScalarWithoutTouchingAdaptation()
+        public async Task CompensationScalesTheAppliedScalarWithoutTouchingAdaptation()
         {
             var plain = NewRenderer(Auto(up: 0.0f, compensation: 0.0f));
             plain.AverageLuminance = 0.18f / 2f;
@@ -521,15 +530,13 @@ namespace Tests
             compensated.AverageLuminance = 0.18f / 2f;
             compensated.CalculateTonemapScalar(1.0f / 60.0f);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(compensated.CurrentExposure, Is.EqualTo(plain.CurrentExposure), "adaptation state is unaffected");
-                Assert.That(compensated.TonemapScalar, Is.EqualTo(plain.TonemapScalar * 2.0f).Within(1e-5f), "one stop applied");
-            });
+            await Assert.That(compensated.CurrentExposure).IsEqualTo(plain.CurrentExposure).Because("adaptation state is unaffected");
+            await Assert.That(compensated.TonemapScalar).IsEqualTo(plain.TonemapScalar * 2.0f).Within(1e-5f).Because("one stop applied");
+        
         }
 
         [Test]
-        public void AutoExposureDisabledIgnoresLuminanceAndAppliesCompensationOnly()
+        public async Task AutoExposureDisabledIgnoresLuminanceAndAppliesCompensationOnly()
         {
             var settings = Auto(compensation: -1.0f);
             settings.AutoExposureEnabled = false;
@@ -538,32 +545,27 @@ namespace Tests
             renderer.AverageLuminance = 0.18f / 6f;
             renderer.CalculateTonemapScalar(1.0f / 60.0f);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(renderer.TonemapScalar, Is.EqualTo(0.5f), "1.0 scaled by 2^-1");
-                Assert.That(renderer.ExposureHistory, Is.Empty);
-            });
+            await Assert.That(renderer.TonemapScalar).IsEqualTo(0.5f).Because("1.0 scaled by 2^-1");
+            await Assert.That(renderer.ExposureHistory).IsEmpty();
+        
         }
 
         [Test]
-        public void CustomExposureBypassesTheWholeChainAndDisablesAutoExposureInState()
+        public async Task CustomExposureBypassesTheWholeChainAndDisablesAutoExposureInState()
         {
             var renderer = NewRenderer(Auto());
             renderer.CustomExposure = 0.75f;
             renderer.AverageLuminance = 0.18f / 6f;
             renderer.CalculateTonemapScalar(1.0f / 60.0f);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(renderer.TonemapScalar, Is.EqualTo(0.75f), "compensation is not applied on this path");
-                Assert.That(renderer.State.ExposureSettings.AutoExposureEnabled, Is.False,
-                    "the state flag is cleared so the histogram pass is skipped this frame");
-                Assert.That(renderer.ExposureHistory, Is.Empty);
-            });
+            await Assert.That(renderer.TonemapScalar).IsEqualTo(0.75f).Because("compensation is not applied on this path");
+            await Assert.That(renderer.State.ExposureSettings.AutoExposureEnabled).IsFalse().Because("the state flag is cleared so the histogram pass is skipped this frame");
+            await Assert.That(renderer.ExposureHistory).IsEmpty();
+        
         }
 
         [Test]
-        public void VariableDeltaTimeIntegratesInLog2Space()
+        public async Task VariableDeltaTimeIntegratesInLog2Space()
         {
             // Two half-length frames must land on the same exposure as one full-length frame,
             // because the integration is linear in log2 space when neither frame clamps.
@@ -576,11 +578,11 @@ namespace Tests
             split.CalculateTonemapScalar(0.25f);
             split.CalculateTonemapScalar(0.25f);
 
-            Assert.That(split.CurrentExposure, Is.EqualTo(single.CurrentExposure).Within(1e-5f));
+            await Assert.That(split.CurrentExposure).IsEqualTo(single.CurrentExposure).Within(1e-5f);
         }
 
         [Test]
-        public void ExposureIsCalculatedFromAPreviousFramesLuminance()
+        public async Task ExposureIsCalculatedFromAPreviousFramesLuminance()
         {
             // Renderer.cs assigns State and calls CalculateTonemapScalar in the pre-render
             // update, while ComputeAverageLuminance runs later in the same frame. The value
@@ -594,7 +596,7 @@ namespace Tests
 
             // A new luminance arriving after the calculation cannot affect this frame.
             renderer.AverageLuminance = 0.18f / 8f;
-            Assert.That(renderer.TonemapScalar, Is.EqualTo(afterFirst));
+            await Assert.That(renderer.TonemapScalar).IsEqualTo(afterFirst);
         }
     }
 }

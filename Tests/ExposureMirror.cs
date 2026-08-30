@@ -132,7 +132,7 @@ namespace Tests
             history.Add(rawScalar);
 
             var (min, max) = (settings.ExposureMin, settings.ExposureMax);
-            var clampedScalar = Math.Clamp(rawScalar, min, max);
+            var clampedScalar = MathF.Max(MathF.Min(rawScalar, max), min);
 
             if (history.Count == 10)
             {
@@ -149,7 +149,7 @@ namespace Tests
                 record.HistoryWindowUsed = true;
                 record.WeightedSum = weightedSum;
                 record.WeightTotal = weightTotal;
-                clampedScalar = Math.Clamp(weightedSum / weightTotal, min, max);
+                clampedScalar = MathF.Max(MathF.Min(weightedSum * (1.0f / weightTotal), max), min);
             }
 
             record.ClampedScalar = clampedScalar;
@@ -193,11 +193,12 @@ namespace Tests
                 adaptRate = -adaptRate;
             }
 
+            var adaptingUpward = adaptRate >= 0.0;
             adaptRate *= deltaTime;
             record.AdaptRateScaled = adaptRate;
 
             var integrated = MathF.Pow(2, logCurrent + adaptRate);
-            var newScalar = adaptRate >= 0.0
+            var newScalar = adaptingUpward
                 ? MathF.Min(integrated, TargetExposure)
                 : MathF.Max(integrated, TargetExposure);
             record.OvershootClamped = newScalar != integrated;
