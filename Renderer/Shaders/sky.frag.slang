@@ -1,7 +1,6 @@
 #version 460
 
 #include "common/utils.slang"
-#include "common/ViewConstants.slang"
 
 in vec3 vSkyLookupInterpolant;
 out vec4 vColor;
@@ -37,24 +36,6 @@ uniform vec3 g_vTint = vec3(1.0, 1.0, 1.0);
 
 const float g_flToneMapScalarLinear = 1.0;
 
-// Haze phase pin: the haze/cloud layer phase is an explicit function of the scene
-// clock, never per-frame Random. ViewConstants.g_flTime is written from
-// Renderer.Uptime (Renderer/Renderer.cs), which the headless driver seeds via
-// --start-time, so at a pinned start time this phase is bit-reproducible and the
-// engine's cloud/haze pass (additive SrcAlpha/One over the sky, per
-// nades artifacts/vrf_frame_ladder/dust2_sky_cloud_draw_states.json) can be
-// matched phase-locked. No fit-to-capture constants: the speed is a plain rate.
-uniform float g_flHazePhaseSpeed = 1.0; // haze phase rate, cycles per second
-
-// Haze phase derived from the pinnable scene clock (g_flTime = Renderer.Uptime).
-float GetHazePhase()
-{
-    return g_flTime * g_flHazePhaseSpeed;
-}
-
-uniform vec3 g_vHazeColor = vec3(0.0, 0.0, 0.0);
-uniform float g_flHazeAmount = 0.0; // 0 = haze off; the built-in path stays bit-identical
-
 
 void main()
 {
@@ -72,10 +53,6 @@ void main()
     // Because we precalculate neither of these, we can at least save one exp2 by substituting them into one factor
     vColor.rgb *= exp2(g_flBrightnessExposureBias + g_flRenderOnlyExposureBias);
     vColor.rgb *= g_vTint;
-
-    // Additive haze layer, phase-pinned to the scene clock (GetHazePhase).
-    // Disabled by default (g_flHazeAmount == 0) so existing renders stay bit-identical.
-    vColor.rgb += g_vHazeColor * GetHazePhase() * g_flHazeAmount;
 
     vColor.rgb = ClampToPositive(vColor.rgb);
 
