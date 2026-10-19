@@ -76,6 +76,7 @@ namespace ValveResourceFormat.Particles
                 ["C_INIT_InitFloatCollection"] = initializerInfo => new InitFloatCollection(initializerInfo),
                 ["C_INIT_InitVec"] = initializerInfo => new InitVec(initializerInfo),
                 ["C_INIT_InitialVelocityNoise"] = initializerInfo => new InitialVelocityNoise(initializerInfo),
+                ["C_INIT_InitialRepulsionVelocity"] = initializerInfo => new InitialRepulsionVelocity(initializerInfo),
                 ["C_INIT_PointList"] = initializerInfo => new PointList(initializerInfo),
                 ["C_INIT_PositionOffset"] = initializerInfo => new PositionOffset(initializerInfo),
                 ["C_INIT_PositionPlaceOnGround"] = initializerInfo => new PositionPlaceOnGround(initializerInfo),

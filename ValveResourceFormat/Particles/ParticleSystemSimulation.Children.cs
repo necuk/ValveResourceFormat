@@ -61,14 +61,28 @@ namespace ValveResourceFormat.Particles
         /// Appends the render states of the direct children tagged with <paramref name="groupId"/> to
         /// <paramref name="destination"/>, in definition order.
         /// </summary>
-        internal void CollectChildStatesInGroup(int groupId, List<ParticleSystemState> destination)
+        internal void CollectChildStatesInGroup(int groupId, List<ParticleSystemState> destination, bool includeDescendants = false)
         {
             foreach (var child in childSimulations)
             {
                 if (child.groupId == groupId)
                 {
                     destination.Add(child.systemState);
+
+                    if (includeDescendants)
+                    {
+                        child.CollectDescendantStates(destination);
+                    }
                 }
+            }
+        }
+
+        private void CollectDescendantStates(List<ParticleSystemState> destination)
+        {
+            foreach (var child in childSimulations)
+            {
+                destination.Add(child.systemState);
+                child.CollectDescendantStates(destination);
             }
         }
 
