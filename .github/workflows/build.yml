@@ -21,8 +21,6 @@ on:
     - 'docs/**'
     - '*.md'
   workflow_dispatch:
-  schedule:
-  - cron: "37 10 * * 2"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
