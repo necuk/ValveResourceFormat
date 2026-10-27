@@ -88,7 +88,7 @@ namespace ValveResourceFormat.Particles.Operators
                 var startTime = particleSystemState.Random.ForParticleBetween(particleId, StartTimeOffset, startTimeMin, startTimeMax);
                 var endTime = particleSystemState.Random.ForParticleBetween(particleId, EndTimeOffset, endTimeMin, endTimeMax);
 
-                var normalizedAge = ParticleMath.NormalizedAge(age, lifetime);
+                var normalizedAge = age / lifetime;
                 var windowTime = proportionalWindow ? normalizedAge : age;
 
                 if (windowTime < startTime || windowTime >= endTime)
